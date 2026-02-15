@@ -6,21 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { 
-  Key, 
-  Search, 
+import {
+  Key,
+  Search,
   Loader2,
   UserCog,
   Users,
@@ -63,7 +63,7 @@ export default function GerenciarContasPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -72,7 +72,7 @@ export default function GerenciarContasPage() {
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   const [newAccountData, setNewAccountData] = useState({
     email: "",
     password: "",
@@ -97,23 +97,23 @@ export default function GerenciarContasPage() {
     setLoading(false);
   };
 
-    useEffect(() => {
-      if (["admin", "coord_geral", "coord_nucleo"].includes(profile?.role || "")) {
-        fetchAccounts();
-      }
-    }, [profile]);
+  useEffect(() => {
+    if (["admin", "coord_geral", "coord_nucleo"].includes(profile?.role || "")) {
+      fetchAccounts();
+    }
+  }, [profile]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(acc => {
-      const matchesSearch = 
+      const matchesSearch =
         acc.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         acc.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         acc.cpf?.includes(searchTerm);
-      
-      const matchesRole = filterRole === "all" || 
+
+      const matchesRole = filterRole === "all" ||
         acc.role === filterRole ||
         (filterRole === "instrutor" && acc.role === "instructor");
-      
+
       return matchesSearch && matchesRole;
     });
   }, [accounts, searchTerm, filterRole]);
@@ -212,6 +212,37 @@ export default function GerenciarContasPage() {
     setSaving(false);
   };
 
+  const handleSyncAccounts = async () => {
+    setLoading(true);
+    toast.info("Iniciando sincronização de contas...");
+    try {
+      const res = await fetch("/api/accounts/sync", {
+        method: "POST",
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        const { created, already_exists, errors } = result.results;
+        toast.success(`Sincronização concluída! Criados: ${created}, Existentes: ${already_exists}`);
+
+        if (created > 0) {
+          fetchAccounts();
+        }
+
+        if (errors.length > 0) {
+          console.error("Erros na sincronização:", errors);
+          toast.warning(`${errors.length} erros ocorreram. Verifique o console.`);
+        }
+      } else {
+        toast.error("Erro na sincronização: " + result.error);
+      }
+    } catch (error) {
+      toast.error("Erro ao conectar com servidor");
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copiado para a área de transferência!");
@@ -245,13 +276,23 @@ export default function GerenciarContasPage() {
             </p>
           </div>
         </div>
-        <Button 
-          onClick={() => setShowCreateDialog(true)} 
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold h-11 px-5 rounded-xl shadow-lg shadow-emerald-600/20"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Nova Conta
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSyncAccounts}
+            disabled={loading}
+            className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold h-11 px-5 rounded-xl border border-zinc-700"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </Button>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold h-11 px-5 rounded-xl shadow-lg shadow-emerald-600/20"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Nova Conta
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -312,8 +353,8 @@ export default function GerenciarContasPage() {
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-          <Input 
-            placeholder="Buscar por nome, e-mail ou CPF..." 
+          <Input
+            placeholder="Buscar por nome, e-mail ou CPF..."
             className="pl-11 bg-zinc-900/50 border-zinc-800 text-white h-11 rounded-xl focus:ring-emerald-500/30"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -332,9 +373,9 @@ export default function GerenciarContasPage() {
             <SelectItem value="admin">Administradores</SelectItem>
           </SelectContent>
         </Select>
-        <Button 
-          variant="outline" 
-          onClick={fetchAccounts} 
+        <Button
+          variant="outline"
+          onClick={fetchAccounts}
           className="border-zinc-800 text-zinc-400 hover:text-white h-11 rounded-xl"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -413,7 +454,7 @@ export default function GerenciarContasPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="py-4 text-zinc-400 text-sm">
-                              {acc.last_sign_in 
+                              {acc.last_sign_in
                                 ? format(new Date(acc.last_sign_in), "dd/MM/yy HH:mm", { locale: ptBR })
                                 : <span className="text-zinc-600">Nunca</span>}
                             </TableCell>
@@ -457,7 +498,7 @@ export default function GerenciarContasPage() {
                   </TableBody>
                 </Table>
               </div>
-              
+
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800">
                   <p className="text-sm text-zinc-500">
@@ -535,7 +576,7 @@ export default function GerenciarContasPage() {
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b border-zinc-800">
                   <span className="text-zinc-500 text-sm">E-mail</span>
@@ -560,7 +601,7 @@ export default function GerenciarContasPage() {
                 <div className="flex justify-between items-center py-2 border-b border-zinc-800">
                   <span className="text-zinc-500 text-sm">Criado em</span>
                   <span className="text-white text-sm">
-                    {selectedAccount.created_at 
+                    {selectedAccount.created_at
                       ? format(new Date(selectedAccount.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
                       : "---"}
                   </span>
@@ -568,7 +609,7 @@ export default function GerenciarContasPage() {
                 <div className="flex justify-between items-center py-2">
                   <span className="text-zinc-500 text-sm">Último acesso</span>
                   <span className="text-white text-sm">
-                    {selectedAccount.last_sign_in 
+                    {selectedAccount.last_sign_in
                       ? format(new Date(selectedAccount.last_sign_in), "dd/MM/yyyy HH:mm", { locale: ptBR })
                       : "Nunca"}
                   </span>
@@ -594,7 +635,7 @@ export default function GerenciarContasPage() {
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">Nova Senha</Label>
               <div className="relative">
-                <Input 
+                <Input
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -613,16 +654,16 @@ export default function GerenciarContasPage() {
               </div>
             </div>
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowResetDialog(false)} 
+              <Button
+                variant="outline"
+                onClick={() => setShowResetDialog(false)}
                 className="flex-1 border-zinc-700 text-zinc-400 rounded-xl"
               >
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleResetPassword} 
-                disabled={saving || !newPassword} 
+              <Button
+                onClick={handleResetPassword}
+                disabled={saving || !newPassword}
                 className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Redefinir"}
@@ -649,16 +690,16 @@ export default function GerenciarContasPage() {
             Tem certeza que deseja excluir a conta de <span className="text-white font-semibold">{selectedAccount?.email}</span>?
           </p>
           <DialogFooter className="flex gap-3 pt-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteDialog(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
               className="flex-1 border-zinc-700 text-zinc-400 rounded-xl"
             >
               Cancelar
             </Button>
-            <Button 
-              onClick={handleDeleteAccount} 
-              disabled={saving} 
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={saving}
               className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Excluir"}
@@ -678,7 +719,7 @@ export default function GerenciarContasPage() {
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">Nome Completo *</Label>
-              <Input 
+              <Input
                 value={newAccountData.fullName}
                 onChange={(e) => setNewAccountData({ ...newAccountData, fullName: e.target.value })}
                 placeholder="Nome do usuário"
@@ -687,7 +728,7 @@ export default function GerenciarContasPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">E-mail *</Label>
-              <Input 
+              <Input
                 type="email"
                 value={newAccountData.email}
                 onChange={(e) => setNewAccountData({ ...newAccountData, email: e.target.value })}
@@ -697,7 +738,7 @@ export default function GerenciarContasPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">Senha *</Label>
-              <Input 
+              <Input
                 type="text"
                 value={newAccountData.password}
                 onChange={(e) => setNewAccountData({ ...newAccountData, password: e.target.value })}
@@ -720,7 +761,7 @@ export default function GerenciarContasPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">CPF (opcional)</Label>
-              <Input 
+              <Input
                 value={newAccountData.cpf}
                 onChange={(e) => setNewAccountData({ ...newAccountData, cpf: e.target.value.replace(/\D/g, "") })}
                 placeholder="00000000000"
@@ -729,16 +770,16 @@ export default function GerenciarContasPage() {
               />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowCreateDialog(false)} 
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateDialog(false)}
                 className="flex-1 border-zinc-700 text-zinc-400 rounded-xl"
               >
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleCreateAccount} 
-                disabled={saving} 
+              <Button
+                onClick={handleCreateAccount}
+                disabled={saving}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar Conta"}
