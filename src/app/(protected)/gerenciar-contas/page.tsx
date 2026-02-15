@@ -78,8 +78,29 @@ export default function GerenciarContasPage() {
     password: "",
     fullName: "",
     role: "responsavel",
-    cpf: ""
+    cpf: "",
+    studentId: ""
   });
+
+  const [studentsList, setStudentsList] = useState<any[]>([]);
+
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch("/api/students");
+      const result = await res.json();
+      if (result.success) {
+        setStudentsList(result.students);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar estudantes", error);
+    }
+  };
+
+  useEffect(() => {
+    if (showCreateDialog) {
+      fetchStudents();
+    }
+  }, [showCreateDialog]);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -201,7 +222,7 @@ export default function GerenciarContasPage() {
       if (result.success) {
         toast.success("Conta criada com sucesso!");
         setShowCreateDialog(false);
-        setNewAccountData({ email: "", password: "", fullName: "", role: "responsavel", cpf: "" });
+        setNewAccountData({ email: "", password: "", fullName: "", role: "responsavel", cpf: "", studentId: "" });
         fetchAccounts();
       } else {
         toast.error("Erro: " + result.error);
@@ -709,7 +730,7 @@ export default function GerenciarContasPage() {
       </Dialog>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-emerald-500" />
@@ -717,6 +738,108 @@ export default function GerenciarContasPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400 text-sm">Tipo de Conta *</Label>
+              <Select
+                value={newAccountData.role}
+                onValueChange={(val) => setNewAccountData({ ...newAccountData, role: val, fullName: "", cpf: "", studentId: "" })}
+              >
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="aluno">Aluno</SelectItem>
+                  <SelectItem value="responsavel">Responsável</SelectItem>
+                  <SelectItem value="instrutor">Instrutor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(newAccountData.role === 'aluno' || newAccountData.role === 'responsavel') && (
+              <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 space-y-3">
+                <Label className="text-emerald-400 text-xs uppercase font-bold tracking-wider">Vincular a Cadastro Existente</Label>
+
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">Selecione o Aluno</Label>
+                  <Select
+                    value={newAccountData.studentId}
+                    onValueChange={(val) => {
+                      const selectedStudent = studentsList.find(s => s.id === val);
+                      if (selectedStudent && newAccountData.role === 'aluno') {
+                        setNewAccountData({
+                          ...newAccountData,
+                          studentId: val,
+                          fullName: selectedStudent.nome_completo
+                        });
+                      } else {
+                        setNewAccountData({ ...newAccountData, studentId: val });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9 text-sm">
+                      <SelectValue placeholder="Buscar aluno..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white max-h-60">
+                      {studentsList.map(student => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.nome_completo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {newAccountData.role === 'responsavel' && newAccountData.studentId && (
+                  <div className="space-y-1">
+                    <Label className="text-zinc-400 text-xs">Quem é este responsável?</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(() => {
+                        const st = studentsList.find(s => s.id === newAccountData.studentId);
+                        if (!st) return null;
+                        return (
+                          <>
+                            {st.guardian1_name && (
+                              <Button
+                                variant="outline"
+                                className="justify-start text-left h-auto py-2 px-3 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700"
+                                onClick={() => setNewAccountData({
+                                  ...newAccountData,
+                                  fullName: st.guardian1_name,
+                                  cpf: st.guardian1_cpf || ""
+                                })}
+                              >
+                                <div className="flex flex-col items-start">
+                                  <span className="text-sm font-medium">{st.guardian1_name}</span>
+                                  <span className="text-xs text-zinc-500">Mãe / Resp. 1</span>
+                                </div>
+                              </Button>
+                            )}
+                            {st.guardian2_name && (
+                              <Button
+                                variant="outline"
+                                className="justify-start text-left h-auto py-2 px-3 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700"
+                                onClick={() => setNewAccountData({
+                                  ...newAccountData,
+                                  fullName: st.guardian2_name,
+                                  cpf: st.guardian2_cpf || ""
+                                })}
+                              >
+                                <div className="flex flex-col items-start">
+                                  <span className="text-sm font-medium">{st.guardian2_name}</span>
+                                  <span className="text-xs text-zinc-500">Pai / Resp. 2</span>
+                                </div>
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">Nome Completo *</Label>
               <Input
@@ -746,19 +869,7 @@ export default function GerenciarContasPage() {
                 className="bg-zinc-800 border-zinc-700 text-white rounded-xl"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400 text-sm">Tipo de Conta *</Label>
-              <Select value={newAccountData.role} onValueChange={(val) => setNewAccountData({ ...newAccountData, role: val })}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                  <SelectItem value="aluno">Aluno</SelectItem>
-                  <SelectItem value="responsavel">Responsável</SelectItem>
-                  <SelectItem value="instrutor">Instrutor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             <div className="space-y-2">
               <Label className="text-zinc-400 text-sm">CPF (opcional)</Label>
               <Input

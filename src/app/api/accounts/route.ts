@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "createAccount") {
-      const { email, password, fullName, role, cpf } = data;
+      const { email, password, fullName, role, cpf, studentId } = data;
 
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
       const userExists = existingUsers.users.find(u => u.email === email);
@@ -103,7 +103,8 @@ export async function POST(request: Request) {
         .update({
           role,
           full_name: fullName,
-          cpf
+          cpf,
+          student_id: studentId
         })
         .eq("id", authData.user.id);
 
