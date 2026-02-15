@@ -1,37 +1,37 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
 export async function GET() {
   try {
     let allUsers: any[] = [];
     let page = 1;
     const perPage = 1000;
-    
+
     while (true) {
       const { data: usersData, error } = await supabaseAdmin.auth.admin.listUsers({
         page,
         perPage
       });
-      
+
       if (error) throw error;
-      
+
       allUsers = [...allUsers, ...usersData.users];
-      
+
       if (usersData.users.length < perPage) break;
       page++;
     }
-    
+
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("*");
-    
+
     const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    
+
     const accounts = allUsers.map(user => ({
       id: user.id,
       email: user.email,
@@ -42,7 +42,7 @@ export async function GET() {
       created_at: user.created_at,
       last_sign_in: user.last_sign_in_at,
     }));
-    
+
     return NextResponse.json({ success: true, accounts });
   } catch (error: any) {
     console.error("Error fetching accounts:", error);
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     if (action === "deleteAccount") {
       const { userId } = data;
       const { data: user } = await supabaseAdmin.auth.admin.getUserById(userId);
-      
+
       if (user?.user?.email === "admin@admin.com") {
         throw new Error("Não é permitido excluir a conta do administrador principal.");
       }
@@ -78,10 +78,10 @@ export async function POST(request: Request) {
 
     if (action === "createAccount") {
       const { email, password, fullName, role, cpf } = data;
-      
+
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
       const userExists = existingUsers.users.find(u => u.email === email);
-      
+
       if (userExists) {
         throw new Error("Já existe um usuário com este e-mail.");
       }
@@ -100,8 +100,8 @@ export async function POST(request: Request) {
 
       await supabaseAdmin
         .from("profiles")
-        .update({ 
-          role, 
+        .update({
+          role,
           full_name: fullName,
           cpf
         })
