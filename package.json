@@ -7,7 +7,8 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "push": "git add . && git commit -m \"Update from local development\" && git push"
     },
     "dependencies": {
         "@babel/parser": "^7.28.5",
