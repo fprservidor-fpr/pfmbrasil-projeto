@@ -9,6 +9,7 @@ import { ArrowLeft, Printer, Loader2, Download } from "lucide-react";
 import { PrintableCover } from "@/components/printable-cover";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 interface Student {
   id: string;
@@ -72,32 +73,55 @@ function PrintCoverContent() {
   });
 
   const handleDownloadPDF = async () => {
-    if (!componentRef.current) return;
+    if (!componentRef.current) {
+      toast.error("Erro interno: Área de impressão não encontrada.");
+      return;
+    }
 
     try {
       setDownloading(true);
+      toast.info("Processando sua capa para download...");
+
+      // Garantir que estamos no topo para evitar cortes de scroll no canvas mobile
+      window.scrollTo(0, 0);
+
+      // Aguarda um pequeno delay para garantir renderização estável
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const canvas = await html2canvas(componentRef.current, {
-        scale: 2, // Melhor qualidade
+        scale: 2, // Retina quality
         useCORS: true,
+        allowTaint: true,
         logging: false,
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
+        windowWidth: 1000, // Força largura de captura estável
+        onclone: (clonedDoc) => {
+          // Ajustes finos no elemento clonado para garantir visibilidade
+          const el = clonedDoc.querySelector(".printable-area") as HTMLElement;
+          if (el) {
+            el.style.display = "flex";
+            el.style.position = "relative";
+          }
+        }
       });
 
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/png", 1.0);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4"
       });
 
-      const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       pdf.save(`Capa_Caderno_${student?.nome_guerra || "PFM"}.pdf`);
+
+      toast.success("Download iniciado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
+      toast.error("Ocorreu um erro ao gerar o PDF. Tente novamente ou use a versão Desktop.");
     } finally {
       setDownloading(false);
     }
