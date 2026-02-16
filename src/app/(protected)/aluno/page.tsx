@@ -4,17 +4,17 @@ import { useEffect, useState, memo, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Award, 
-  Calendar, 
-  BookOpen, 
-  TrendingUp, 
-  Star, 
+import {
+  Award,
+  Calendar,
+  BookOpen,
+  TrendingUp,
+  Star,
   Clock,
-    Download,
-    ExternalLink,
-    ChevronRight,
-    ShieldCheck,
+  Download,
+  ExternalLink,
+  ChevronRight,
+  ShieldCheck,
   AlertCircle,
   Activity,
   User,
@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, parseISO, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 const StatCard = memo(({ title, value, icon: Icon, color, description }: any) => (
@@ -57,9 +58,9 @@ export default function AlunoPage() {
   const [student, setStudent] = useState<any>(null);
   const [nextEvents, setNextEvents] = useState<any[]>([]);
   const [reminders, setReminders] = useState<any[]>([]);
-    const [comportamentos, setComportamentos] = useState<any[]>([]);
-    const [activeMissoes, setActiveMissoes] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+  const [comportamentos, setComportamentos] = useState<any[]>([]);
+  const [activeMissoes, setActiveMissoes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const studentId = profile?.student_id;
 
@@ -75,47 +76,47 @@ export default function AlunoPage() {
       const today = new Date().toISOString().split('T')[0];
       const nextWeek = addDays(new Date(), 7).toISOString().split('T')[0];
 
-        const [studentRes, eventsRes, behaviorRes, missoesRes] = await Promise.all([
-          supabase.from("students").select("*").eq("id", studentId).single(),
-          supabase.from("calendario_letivo").select("*").eq("visivel_aluno", true).gte("data", today).order("data", { ascending: true }),
-          supabase.from("comportamentos").select("*").eq("aluno_id", studentId).order("created_at", { ascending: false }),
-          supabase.from("missoes_atividades").select("*, missoes_materiais(material:study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true })
-        ]);
+      const [studentRes, eventsRes, behaviorRes, missoesRes] = await Promise.all([
+        supabase.from("students").select("*").eq("id", studentId).single(),
+        supabase.from("calendario_letivo").select("*").eq("visivel_aluno", true).gte("data", today).order("data", { ascending: true }),
+        supabase.from("comportamentos").select("*").eq("aluno_id", studentId).order("created_at", { ascending: false }),
+        supabase.from("missoes_atividades").select("*, missoes_materiais(material:study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true })
+      ]);
 
-        if (studentRes.data) {
-          setStudent(studentRes.data);
-          
-          const filteredMissoes = (missoesRes.data || []).filter(m => {
-            if (m.turma_id && m.turma_id !== studentRes.data.turma_id) return false;
-            return true;
-          });
+      if (studentRes.data) {
+        setStudent(studentRes.data);
 
-          setActiveMissoes(filteredMissoes);
+        const filteredMissoes = (missoesRes.data || []).filter(m => {
+          if (m.turma_id && m.turma_id !== studentRes.data.turma_id) return false;
+          return true;
+        });
 
-          const allEvents = eventsRes.data || [];
-          const importantTypes = ["feriado", "reuniao", "corte_cabelo", "campeonato", "provas"];
-          
-          const urgentReminders = allEvents.filter(e => {
-            const isSoon = isBefore(parseISO(e.data), parseISO(nextWeek));
-            const isImportant = importantTypes.includes(e.tipo);
-            return isSoon || isImportant;
-          }).map(e => ({
-            ...e,
-            category: 'calendario'
-          }));
+        setActiveMissoes(filteredMissoes);
 
-            const missionReminders = filteredMissoes.map(m => ({
-            ...m,
-            data: m.data_entrega,
-            descricao: m.titulo,
-            tipo: m.tipo,
-            category: 'missao'
-          }));
+        const allEvents = eventsRes.data || [];
+        const importantTypes = ["feriado", "reuniao", "corte_cabelo", "campeonato", "provas"];
 
-          setReminders([...urgentReminders, ...missionReminders].sort((a, b) => a.data.localeCompare(b.data)).slice(0, 4));
-          setNextEvents(allEvents.slice(0, 3));
-        }
-      
+        const urgentReminders = allEvents.filter(e => {
+          const isSoon = isBefore(parseISO(e.data), parseISO(nextWeek));
+          const isImportant = importantTypes.includes(e.tipo);
+          return isSoon || isImportant;
+        }).map(e => ({
+          ...e,
+          category: 'calendario'
+        }));
+
+        const missionReminders = filteredMissoes.map(m => ({
+          ...m,
+          data: m.data_entrega,
+          descricao: m.titulo,
+          tipo: m.tipo,
+          category: 'missao'
+        }));
+
+        setReminders([...urgentReminders, ...missionReminders].sort((a, b) => a.data.localeCompare(b.data)).slice(0, 4));
+        setNextEvents(allEvents.slice(0, 3));
+      }
+
       if (behaviorRes.data) setComportamentos(behaviorRes.data);
     } catch (error) {
       console.error(error);
@@ -129,11 +130,12 @@ export default function AlunoPage() {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const registros = comportamentos.filter(c => new Date(c.created_at) >= start);
-    
+
     let currentScore = 100;
     registros.forEach(r => {
-      if (r.tipo === "merito") currentScore = Math.min(100, currentScore + r.pontos);
-      else currentScore = Math.max(0, currentScore - r.pontos);
+      const pontos = r.pontos || 0;
+      if (r.tipo === "merito") currentScore = Math.min(100, currentScore + pontos);
+      else currentScore = Math.max(0, currentScore - pontos);
     });
     return currentScore;
   }, [comportamentos]);
@@ -169,7 +171,7 @@ export default function AlunoPage() {
         className="relative p-8 md:p-12 rounded-[40px] bg-slate-900/40 backdrop-blur-3xl border border-white/5 overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
           <div className="relative group">
             <div className="absolute inset-0 bg-violet-500 rounded-[32px] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -238,165 +240,165 @@ export default function AlunoPage() {
       </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Pontuação Mensal" 
-          value={score} 
-          icon={Activity} 
+        <StatCard
+          title="Pontuação Mensal"
+          value={score}
+          icon={Activity}
           color="violet"
           description="Seu desempenho este mês"
         />
-        <StatCard 
-          title="Méritos" 
-          value={comportamentos.filter(c => c.tipo === "merito").length} 
-          icon={Award} 
+        <StatCard
+          title="Méritos"
+          value={comportamentos.filter(c => c.tipo === "merito").length}
+          icon={Award}
           color="emerald"
           description="Ações exemplares registradas"
         />
-        <StatCard 
-          title="Deméritos" 
-          value={comportamentos.filter(c => c.tipo === "demerito").length} 
-          icon={AlertCircle} 
+        <StatCard
+          title="Deméritos"
+          value={comportamentos.filter(c => c.tipo === "demerito").length}
+          icon={AlertCircle}
           color="rose"
           description="Pontos de atenção"
         />
-        <StatCard 
-          title="Status de Graduação" 
-          value={student?.graduacao?.split(" ")[0] || "Aprendiz"} 
-          icon={GraduationCap} 
+        <StatCard
+          title="Status de Graduação"
+          value={student?.graduacao || "Aprendiz"}
+          icon={GraduationCap}
           color="amber"
           description="Sua patente atual"
         />
       </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center">
-                    <Target className="w-6 h-6 text-rose-500" />
-                  </div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-widest">Missões e Atividades</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+                  <Target className="w-6 h-6 text-rose-500" />
                 </div>
-                <Link href="/aluno/materiais" className="text-xs font-black text-rose-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1 group">
-                  Ver todas <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                <h2 className="text-xl font-black text-white uppercase tracking-widest">Missões e Atividades</h2>
               </div>
+              <Link href="/aluno/materiais" className="text-xs font-black text-rose-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1 group">
+                Ver todas <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
 
-              <div className="space-y-4">
-                {activeMissoes.length === 0 ? (
-                  <div className="py-10 text-center text-slate-500 font-medium">Nenhuma missão tática no momento.</div>
-                ) : (
-                  activeMissoes.slice(0, 3).map((missao, idx) => (
-                    <motion.div
-                      key={missao.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-rose-500/30 transition-all group relative overflow-hidden"
-                    >
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-start justify-between">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={cn(
-                                "px-2 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-widest",
-                                missao.tipo === "missao" ? "bg-rose-500 text-white" : "bg-blue-500 text-white"
-                              )}>
-                                {missao.tipo === "missao" ? "Missão" : "Atividade"}
-                              </span>
-                              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                                Prazo: {format(parseISO(missao.data_entrega), "dd MMM", { locale: ptBR })}
-                              </span>
-                            </div>
-                            <h4 className="text-white font-black uppercase tracking-tight group-hover:text-rose-400 transition-colors truncate">
-                              {missao.titulo}
-                            </h4>
-                            <p className="text-slate-500 text-xs mt-1 font-medium line-clamp-1">
-                              {missao.descricao}
-                            </p>
+            <div className="space-y-4">
+              {activeMissoes.length === 0 ? (
+                <div className="py-10 text-center text-slate-500 font-medium">Nenhuma missão tática no momento.</div>
+              ) : (
+                activeMissoes.slice(0, 3).map((missao, idx) => (
+                  <motion.div
+                    key={missao.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-rose-500/30 transition-all group relative overflow-hidden"
+                  >
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-widest",
+                              missao.tipo === "missao" ? "bg-rose-500 text-white" : "bg-blue-500 text-white"
+                            )}>
+                              {missao.tipo === "missao" ? "Missão" : "Atividade"}
+                            </span>
+                            <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                              Prazo: {format(parseISO(missao.data_entrega), "dd MMM", { locale: ptBR })}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                             {missao.missoes_materiais?.slice(0, 1).map((mm: any) => (
-                               <Button 
-                                 key={mm.material.id}
-                                 size="sm" 
-                                 variant="ghost" 
-                                 className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                                 onClick={() => window.open(mm.material.file_url, '_blank')}
-                               >
-                                 <Download className="w-4 h-4" />
-                               </Button>
-                             ))}
-                             <Link href="/aluno/materiais">
-                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-white">
-                                 <ExternalLink className="w-4 h-4" />
-                               </Button>
-                             </Link>
-                          </div>
+                          <h4 className="text-white font-black uppercase tracking-tight group-hover:text-rose-400 transition-colors truncate">
+                            {missao.titulo}
+                          </h4>
+                          <p className="text-slate-500 text-xs mt-1 font-medium line-clamp-1">
+                            {missao.descricao}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {missao.missoes_materiais?.filter((mm: any) => mm.material).slice(0, 1).map((mm: any) => (
+                            <Button
+                              key={mm.material.id}
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                              onClick={() => window.open(mm.material.file_url, '_blank')}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          ))}
+                          <Link href="/aluno/materiais">
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-white">
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </motion.div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-amber-500" />
-                  </div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-widest">Próximos Eventos</h2>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-amber-500" />
                 </div>
-                <Link href="/aluno/calendario" className="text-xs font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1 group">
-                  Ver tudo <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                <h2 className="text-xl font-black text-white uppercase tracking-widest">Próximos Eventos</h2>
               </div>
+              <Link href="/aluno/calendario" className="text-xs font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1 group">
+                Ver tudo <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
 
-              <div className="space-y-4">
-                {nextEvents.length === 0 ? (
-                  <div className="py-10 text-center text-slate-500 font-medium">Nenhum evento agendado para os próximos dias.</div>
-                ) : (
-                  nextEvents.map((event, idx) => (
-                    <motion.div
-                      key={event.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="flex items-center gap-6 p-5 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group cursor-pointer"
-                    >
-                      <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-white/10 flex flex-col items-center justify-center shrink-0">
-                        <span className="text-xl font-black text-white leading-none">{format(parseISO(event.data), "dd")}</span>
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{format(parseISO(event.data), "MMM", { locale: ptBR })}</span>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-bold group-hover:text-violet-400 transition-colors">{event.descricao}</h4>
-                        <p className="text-slate-500 text-xs mt-1 font-medium flex items-center gap-2">
-                          <Clock className="w-3 h-3" />
-                          {format(parseISO(event.data), "EEEE", { locale: ptBR })}
-                        </p>
-                      </div>
-                      <div className="hidden sm:block">
-                        <span className="px-3 py-1 bg-white/5 text-[9px] font-black text-slate-400 uppercase tracking-widest rounded-lg border border-white/10">
-                          {event.tipo}
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </div>
+            <div className="space-y-4">
+              {nextEvents.length === 0 ? (
+                <div className="py-10 text-center text-slate-500 font-medium">Nenhum evento agendado para os próximos dias.</div>
+              ) : (
+                nextEvents.map((event, idx) => (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="flex items-center gap-6 p-5 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group cursor-pointer"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-white/10 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-xl font-black text-white leading-none">{format(parseISO(event.data), "dd")}</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{format(parseISO(event.data), "MMM", { locale: ptBR })}</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-bold group-hover:text-violet-400 transition-colors">{event.descricao}</h4>
+                      <p className="text-slate-500 text-xs mt-1 font-medium flex items-center gap-2">
+                        <Clock className="w-3 h-3" />
+                        {format(parseISO(event.data), "EEEE", { locale: ptBR })}
+                      </p>
+                    </div>
+                    <div className="hidden sm:block">
+                      <span className="px-3 py-1 bg-white/5 text-[9px] font-black text-slate-400 uppercase tracking-widest rounded-lg border border-white/10">
+                        {event.tipo}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -407,7 +409,7 @@ export default function AlunoPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#ffffff20_0%,transparent_70%)]" />
             <h3 className="text-lg font-black uppercase tracking-widest relative z-10">Acesso Rápido</h3>
             <p className="text-violet-100/70 text-sm mt-1 relative z-10">Links mais utilizados</p>
-            
+
             <div className="grid grid-cols-1 gap-3 mt-8 relative z-10">
               <Link href="/aluno/materiais" className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/link border border-white/10">
                 <BookOpen className="w-5 h-5" />
@@ -419,20 +421,20 @@ export default function AlunoPage() {
                 <span className="text-xs font-black uppercase tracking-widest">Meus Dados</span>
                 <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
               </Link>
-                <Link href="/aluno/frequencia" className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/link border border-white/10">
-                  <Clock className="w-5 h-5" />
-                  <span className="text-xs font-black uppercase tracking-widest">Frequência</span>
-                  <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
-                </Link>
-                <button 
-                  onClick={() => signOut()}
-                  className="flex items-center gap-4 p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 transition-all group/link border border-rose-500/20 text-rose-400"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="text-xs font-black uppercase tracking-widest">Sair da Conta</span>
-                  <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
-                </button>
-              </div>
+              <Link href="/aluno/frequencia" className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/link border border-white/10">
+                <Clock className="w-5 h-5" />
+                <span className="text-xs font-black uppercase tracking-widest">Frequência</span>
+                <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
+              </Link>
+              <button
+                onClick={() => signOut()}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 transition-all group/link border border-rose-500/20 text-rose-400"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="text-xs font-black uppercase tracking-widest">Sair da Conta</span>
+                <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
+              </button>
+            </div>
           </div>
 
           <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8">

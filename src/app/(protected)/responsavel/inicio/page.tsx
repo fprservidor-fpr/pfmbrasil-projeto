@@ -4,12 +4,12 @@ import { useEffect, useState, memo, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Award, 
-  Calendar, 
-  BookOpen, 
-  TrendingUp, 
-  Star, 
+import {
+  Award,
+  Calendar,
+  BookOpen,
+  TrendingUp,
+  Star,
   Clock,
   ChevronRight,
   ShieldCheck,
@@ -88,7 +88,7 @@ export default function ResponsavelInicioPage() {
 
       if (studentRes.data) {
         setStudent(studentRes.data);
-        
+
         const filteredMissoes = (missoesRes.data || []).filter(m => {
           if (m.turma_id && m.turma_id !== studentRes.data.turma_id) return false;
           return true;
@@ -98,7 +98,7 @@ export default function ResponsavelInicioPage() {
 
         const allEvents = eventsRes.data || [];
         const importantTypes = ["feriado", "reuniao", "corte_cabelo", "campeonato", "provas"];
-        
+
         const urgentReminders = allEvents.filter(e => {
           const isSoon = isBefore(parseISO(e.data), parseISO(nextWeek));
           const isImportant = importantTypes.includes(e.tipo);
@@ -108,7 +108,7 @@ export default function ResponsavelInicioPage() {
           category: 'calendario'
         }));
 
-          const missionReminders = filteredMissoes.map(m => ({
+        const missionReminders = filteredMissoes.map(m => ({
           ...m,
           data: m.data_entrega,
           descricao: m.titulo,
@@ -119,7 +119,7 @@ export default function ResponsavelInicioPage() {
         setReminders([...urgentReminders, ...missionReminders].sort((a, b) => a.data.localeCompare(b.data)).slice(0, 4));
         setNextEvents(allEvents.slice(0, 3));
       }
-      
+
       if (behaviorRes.data) setComportamentos(behaviorRes.data);
     } catch (error) {
       console.error(error);
@@ -133,11 +133,12 @@ export default function ResponsavelInicioPage() {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const registros = comportamentos.filter(c => new Date(c.created_at) >= start);
-    
+
     let currentScore = 100;
     registros.forEach(r => {
-      if (r.tipo === "merito") currentScore = Math.min(100, currentScore + r.pontos);
-      else currentScore = Math.max(0, currentScore - r.pontos);
+      const pontos = r.pontos || 0;
+      if (r.tipo === "merito") currentScore = Math.min(100, currentScore + pontos);
+      else currentScore = Math.max(0, currentScore - pontos);
     });
     return currentScore;
   }, [comportamentos]);
@@ -168,7 +169,7 @@ export default function ResponsavelInicioPage() {
   if (!studentId) {
     return (
       <div className="text-center py-20">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-slate-900/50 border border-slate-700/50 p-12 rounded-3xl max-w-md mx-auto"
@@ -196,7 +197,7 @@ export default function ResponsavelInicioPage() {
         className="relative p-8 md:p-12 rounded-[40px] bg-slate-900/40 backdrop-blur-3xl border border-white/5 overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
           <div className="relative group">
             <div className="absolute inset-0 bg-violet-500 rounded-[32px] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -269,31 +270,31 @@ export default function ResponsavelInicioPage() {
       </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Pontuação Mensal" 
-          value={score} 
-          icon={Activity} 
+        <StatCard
+          title="Pontuação Mensal"
+          value={score}
+          icon={Activity}
           color="violet"
           description="Desempenho no ciclo atual"
         />
-        <StatCard 
-          title="Méritos" 
-          value={comportamentos.filter(c => c.tipo === "merito").length} 
-          icon={Award} 
+        <StatCard
+          title="Méritos"
+          value={comportamentos.filter(c => c.tipo === "merito").length}
+          icon={Award}
           color="emerald"
           description="Ações exemplares"
         />
-        <StatCard 
-          title="Deméritos" 
-          value={comportamentos.filter(c => c.tipo === "demerito").length} 
-          icon={AlertCircle} 
+        <StatCard
+          title="Deméritos"
+          value={comportamentos.filter(c => c.tipo === "demerito").length}
+          icon={AlertCircle}
           color="rose"
           description="Pontos de atenção"
         />
-        <StatCard 
-          title="Status" 
-          value={student?.graduacao?.split(" ")[0] || "Aprendiz"} 
-          icon={GraduationCap} 
+        <StatCard
+          title="Status"
+          value={student?.graduacao?.split(" ")[0] || "Aprendiz"}
+          icon={GraduationCap}
           color="amber"
           description="Patente atual"
         />
@@ -353,22 +354,22 @@ export default function ResponsavelInicioPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                           {missao.missoes_materiais?.slice(0, 1).map((mm: any) => (
-                             <Button 
-                               key={mm.material.id}
-                               size="sm" 
-                               variant="ghost" 
-                               className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                               onClick={() => window.open(mm.material.file_url, '_blank')}
-                             >
-                               <Download className="w-4 h-4" />
-                             </Button>
-                           ))}
-                           <Link href="/responsavel/materiais">
-                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-white">
-                               <ExternalLink className="w-4 h-4" />
-                             </Button>
-                           </Link>
+                          {missao.missoes_materiais?.filter((mm: any) => mm.material).slice(0, 1).map((mm: any) => (
+                            <Button
+                              key={mm.material.id}
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                              onClick={() => window.open(mm.material.file_url, '_blank')}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          ))}
+                          <Link href="/responsavel/materiais">
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-white">
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -434,7 +435,7 @@ export default function ResponsavelInicioPage() {
           <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl shadow-violet-900/20 group">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#ffffff20_0%,transparent_70%)]" />
             <h3 className="text-lg font-black uppercase tracking-widest relative z-10">Acesso Rápido</h3>
-            
+
             <div className="grid grid-cols-1 gap-3 mt-8 relative z-10">
               <Link href="/responsavel/materiais" className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/link border border-white/10">
                 <BookOpen className="w-5 h-5" />
@@ -446,7 +447,7 @@ export default function ResponsavelInicioPage() {
                 <span className="text-xs font-black uppercase tracking-widest">Dossiê Detalhado</span>
                 <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
               </Link>
-              <button 
+              <button
                 onClick={() => signOut()}
                 className="flex items-center gap-4 p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 transition-all group/link border border-rose-500/20 text-rose-400 w-full"
               >

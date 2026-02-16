@@ -7,10 +7,10 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  Award, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Award,
+  TrendingUp,
+  TrendingDown,
   Medal,
   AlertTriangle,
   ChevronRight
@@ -65,18 +65,19 @@ export default function AlunoComportamentoPage() {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
-    const registros = comportamentos.filter(c => 
-      new Date(c.created_at) >= start && 
+
+    const registros = comportamentos.filter(c =>
+      new Date(c.created_at) >= start &&
       new Date(c.created_at) <= end
     ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    
+
     let score = 100;
     registros.forEach(r => {
+      const pontos = r.pontos || 0;
       if (r.tipo === "merito") {
-        score = Math.min(100, score + r.pontos);
+        score = Math.min(100, score + pontos);
       } else {
-        score = Math.max(0, score - r.pontos);
+        score = Math.max(0, score - pontos);
       }
     });
     return score;
@@ -85,25 +86,25 @@ export default function AlunoComportamentoPage() {
   const stats = {
     meritos: comportamentos.filter(c => c.tipo === "merito"),
     demeritos: comportamentos.filter(c => c.tipo === "demerito"),
-    totalMeritos: comportamentos.filter(c => c.tipo === "merito").reduce((acc, c) => acc + c.pontos, 0),
-    totalDemeritos: comportamentos.filter(c => c.tipo === "demerito").reduce((acc, c) => acc + c.pontos, 0),
+    totalMeritos: comportamentos.filter(c => c.tipo === "merito").reduce((acc, c) => acc + (c.pontos || 0), 0),
+    totalDemeritos: comportamentos.filter(c => c.tipo === "demerito").reduce((acc, c) => acc + (c.pontos || 0), 0),
   };
 
   const score = calculateScore();
 
-    const getBehaviorLabel = (score: number) => {
-      if (score >= 90) return { label: "Excepcional", color: "text-emerald-400", bg: "bg-emerald-500/20" };
-      if (score >= 75) return { label: "Ótimo", color: "text-blue-400", bg: "bg-blue-500/20" };
-      if (score >= 60) return { label: "Bom", color: "text-violet-400", bg: "bg-violet-500/20" };
-      if (score >= 40) return { label: "Regular", color: "text-amber-400", bg: "bg-amber-500/20" };
-      if (score >= 30) return { label: "Insuficiente", color: "text-red-400", bg: "bg-red-500/20" };
-      return { label: "Mau", color: "text-zinc-400", bg: "bg-zinc-500/20" };
-    };
+  const getBehaviorLabel = (score: number) => {
+    if (score >= 90) return { label: "Excepcional", color: "text-emerald-400", bg: "bg-emerald-500/20" };
+    if (score >= 75) return { label: "Ótimo", color: "text-blue-400", bg: "bg-blue-500/20" };
+    if (score >= 60) return { label: "Bom", color: "text-violet-400", bg: "bg-violet-500/20" };
+    if (score >= 40) return { label: "Regular", color: "text-amber-400", bg: "bg-amber-500/20" };
+    if (score >= 30) return { label: "Insuficiente", color: "text-red-400", bg: "bg-red-500/20" };
+    return { label: "Mau", color: "text-zinc-400", bg: "bg-zinc-500/20" };
+  };
 
   const behavior = getBehaviorLabel(score);
 
-  const filteredItems = activeTab === "todos" 
-    ? comportamentos 
+  const filteredItems = activeTab === "todos"
+    ? comportamentos
     : comportamentos.filter(c => c.tipo === (activeTab === "meritos" ? "merito" : "demerito"));
 
   if (loading) {
@@ -126,7 +127,7 @@ export default function AlunoComportamentoPage() {
         className="bg-gradient-to-br from-slate-900/80 to-slate-800/50 border border-white/10 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl shadow-black/40"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        
+
         <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
           <div className="relative">
             <div className="w-32 h-32 rounded-full bg-slate-950/50 border-4 border-white/10 flex items-center justify-center">
@@ -239,7 +240,7 @@ export default function AlunoComportamentoPage() {
                     <AlertTriangle className="w-6 h-6 text-red-400" />
                   )}
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={cn(
