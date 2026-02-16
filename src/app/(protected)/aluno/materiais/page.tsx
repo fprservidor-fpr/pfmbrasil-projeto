@@ -99,11 +99,16 @@ export default function AlunoMateriaisPage() {
             material:study_materials(*)
           )
         `)
-        .or(`turma_id.eq.${studentData.turma_id},turma_id.is.null`)
         .order("data_entrega", { ascending: true });
 
       if (error) throw error;
-      setMissoes(data || []);
+
+      // Filtragem robusta em memória consistente com o dashboard
+      const filtered = (data || []).filter(m =>
+        !m.turma_id || m.turma_id === studentData.turma_id
+      );
+
+      setMissoes(filtered);
     } catch (error) {
       console.error("Erro ao buscar missões:", error);
     }
