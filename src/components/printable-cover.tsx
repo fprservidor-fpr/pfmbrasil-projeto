@@ -80,7 +80,8 @@ export const PrintableCover = React.forwardRef<HTMLDivElement, PrintableCoverPro
 
           <div className="mb-10 w-[280px]">
             <img
-              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/457299fe-3a14-44fe-b553-88091598e7a6/BRASAO-BFM-1769571151682.png?width=8000&height=8000&resize=contain"
+              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/457299fe-3a14-44fe-b553-88091598e7a6/BRASAO-BFM-1769571151682.png?width=800&height=800&resize=contain"
+              crossOrigin="anonymous"
               alt="Brasão Força Mirim"
               className="w-full h-auto object-contain"
             />

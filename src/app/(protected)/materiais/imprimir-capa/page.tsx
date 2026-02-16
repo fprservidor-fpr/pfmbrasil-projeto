@@ -80,32 +80,24 @@ function PrintCoverContent() {
 
     try {
       setDownloading(true);
-      toast.info("Processando sua capa para download...");
+      const loadingToast = toast.loading("Gerando capa em alta definição...");
 
-      // Garantir que estamos no topo para evitar cortes de scroll no canvas mobile
+      // Forçar scroll para o topo para evitar capturas parciais
       window.scrollTo(0, 0);
-
-      // Aguarda um pequeno delay para garantir renderização estável
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       const canvas = await html2canvas(componentRef.current, {
-        scale: 2, // Retina quality
+        scale: 1.5, // Equilíbrio entre qualidade e memória
         useCORS: true,
-        allowTaint: true,
         logging: false,
         backgroundColor: "#ffffff",
-        windowWidth: 1000, // Força largura de captura estável
-        onclone: (clonedDoc) => {
-          // Ajustes finos no elemento clonado para garantir visibilidade
-          const el = clonedDoc.querySelector(".printable-area") as HTMLElement;
-          if (el) {
-            el.style.display = "flex";
-            el.style.position = "relative";
-          }
-        }
+        scrollX: 0,
+        scrollY: 0,
+        width: componentRef.current.offsetWidth,
+        height: componentRef.current.offsetHeight,
       });
 
-      const imgData = canvas.toDataURL("image/png", 1.0);
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -115,13 +107,14 @@ function PrintCoverContent() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-      pdf.save(`Capa_Caderno_${student?.nome_guerra || "PFM"}.pdf`);
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      pdf.save(`Capa_${student?.nome_guerra || "PFM"}.pdf`);
 
-      toast.success("Download iniciado com sucesso!");
+      toast.dismiss(loadingToast);
+      toast.success("Download iniciado!");
     } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      toast.error("Ocorreu um erro ao gerar o PDF. Tente novamente ou use a versão Desktop.");
+      console.error("Erro PDF:", error);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
     } finally {
       setDownloading(false);
     }
