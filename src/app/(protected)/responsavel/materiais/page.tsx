@@ -7,28 +7,28 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn, openExternalLink } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  BookOpen, 
-  FileText, 
-  Download, 
+import {
+  BookOpen,
+  FileText,
+  Download,
   ExternalLink,
-  Search, 
-  ShieldCheck, 
-  Book, 
-  Printer, 
-    User,
-    Heart,
-    Target
-  } from "lucide-react";
+  Search,
+  ShieldCheck,
+  Book,
+  Printer,
+  User,
+  Heart,
+  Target
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { PrintableCover } from "@/components/printable-cover";
 
@@ -41,15 +41,15 @@ type Material = {
   created_at: string;
 };
 
-  interface Student {
-    id: string;
-    nome_completo: string;
-    nome_guerra: string;
-    matricula_pfm: string;
-    blood_type: string;
-    turma: string;
-    turma_id: string;
-  }
+interface Student {
+  id: string;
+  nome_completo: string;
+  nome_guerra: string;
+  matricula_pfm: string;
+  blood_type: string;
+  turma: string;
+  turma_id: string;
+}
 
 export default function ResponsavelMateriaisPage() {
   const { profile } = useAuth();
@@ -58,7 +58,7 @@ export default function ResponsavelMateriaisPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("pfm");
-  
+
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
@@ -121,7 +121,7 @@ export default function ResponsavelMateriaisPage() {
       .select("*, turma_id")
       .or(`guardian1_cpf.eq.${cleanCpf},guardian2_cpf.eq.${cleanCpf},responsavel_cpf.eq.${cleanCpf}`)
       .eq("status", "ativo");
-    
+
     if (data) {
       setStudents(data);
       const savedId = sessionStorage.getItem("selectedStudentId");
@@ -138,7 +138,7 @@ export default function ResponsavelMateriaisPage() {
 
   const filteredMaterials = materials.filter(m =>
     (m.title.toLowerCase().includes(search.toLowerCase()) ||
-    m.description?.toLowerCase().includes(search.toLowerCase())) &&
+      m.description?.toLowerCase().includes(search.toLowerCase())) &&
     (activeTab === "pfm" ? m.section === "Material PFM" : m.section === "Devocional | Biblia")
   );
 
@@ -159,29 +159,37 @@ export default function ResponsavelMateriaisPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="bg-slate-900/50 border border-white/10 p-1 rounded-2xl h-14">
-            <TabsTrigger value="pfm" className="rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-8">
+    <div className="space-y-6 md:space-y-8 max-w-6xl mx-auto px-4 md:px-0 pb-10">
+      <div className="flex flex-col gap-2 pt-0">
+        <p className="text-slate-500 font-medium uppercase text-[10px] tracking-widest">
+          Acompanhe o conteúdo pedagógico e missões dos seus dependentes
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-8">
+        <div className="relative -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto pb-2 scrollbar-hide">
+          <TabsList className="bg-slate-900/50 border border-white/10 p-1 rounded-2xl h-14 flex w-max md:w-full min-w-full">
+            <TabsTrigger value="pfm" className="rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-4 md:px-8 flex-1 whitespace-nowrap">
               <ShieldCheck className="w-4 h-4 mr-2" />
               Material PFM
             </TabsTrigger>
-            <TabsTrigger value="biblia" className="rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-8">
+            <TabsTrigger value="biblia" className="rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-4 md:px-8 flex-1 whitespace-nowrap">
               <Book className="w-4 h-4 mr-2" />
-              Devocional | Bíblia
+              Bíblia / Devocional
             </TabsTrigger>
-            <TabsTrigger value="missoes" className="rounded-xl data-[state=active]:bg-rose-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-8">
+            <TabsTrigger value="missoes" className="rounded-xl data-[state=active]:bg-rose-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-4 md:px-8 flex-1 whitespace-nowrap">
               <Target className="w-4 h-4 mr-2" />
-              Atividades & Missões
+              Atividades
             </TabsTrigger>
-            <TabsTrigger value="capa" className="rounded-xl data-[state=active]:bg-amber-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-8">
+            <TabsTrigger value="capa" className="rounded-xl data-[state=active]:bg-amber-600 data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest h-full px-4 md:px-8 flex-1 whitespace-nowrap">
               <FileText className="w-4 h-4 mr-2" />
-              Capa do Caderno
+              Capa
             </TabsTrigger>
           </TabsList>
+        </div>
 
         <TabsContent value="capa" className="mt-0 outline-none">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 lg:grid-cols-2 gap-12"
@@ -221,7 +229,7 @@ export default function ResponsavelMateriaisPage() {
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedStudent?.matricula_pfm || "Matrícula"}</p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => handlePrintCover()}
                     disabled={!selectedStudent}
                     className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest h-12 rounded-xl shadow-lg shadow-amber-900/20 gap-2"
@@ -233,54 +241,56 @@ export default function ResponsavelMateriaisPage() {
               </div>
             </div>
 
-            <div className="relative group">
+            <div className="relative group flex justify-center">
               <div className="absolute -inset-4 bg-blue-500/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden aspect-[1/1.414] scale-90 origin-top border-4 border-zinc-900/10">
+              <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden aspect-[1/1.414] scale-100 md:scale-90 origin-top border-4 border-zinc-900/10 w-full max-w-[400px]">
                 {selectedStudent ? (
-                  <PrintableCover student={selectedStudent} />
+                  <div className="w-full h-full overflow-auto scrollbar-hide">
+                    <PrintableCover student={selectedStudent} />
+                  </div>
                 ) : (
-                  <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center p-12 text-center border-4 border-dashed border-slate-200 m-4 rounded-xl">
-                    <User className="w-20 h-20 text-slate-300 mb-6" />
-                    <h3 className="text-slate-400 font-black uppercase tracking-widest">Prévia da Capa</h3>
-                    <p className="text-slate-400 text-xs mt-2">Selecione um dependente para visualizar a capa.</p>
+                  <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center p-8 md:p-12 text-center border-4 border-dashed border-slate-200 m-2 md:m-4 rounded-xl">
+                    <User className="w-12 h-12 md:w-20 md:h-20 text-slate-300 mb-6" />
+                    <h3 className="text-slate-400 font-black uppercase tracking-widest text-xs md:text-base">Prévia da Capa</h3>
+                    <p className="text-slate-400 text-[10px] md:text-xs mt-2">Selecione um dependente para visualizar a capa.</p>
                   </div>
                 )}
               </div>
             </div>
           </motion.div>
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="missoes" className="space-y-6 mt-0 outline-none">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <Input
-                  placeholder="Pesquisar atividades e missões..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-12 h-14 bg-slate-900/50 border-white/10 rounded-2xl text-white focus:ring-rose-500/20"
-                />
-              </div>
-              <div className="w-full md:w-64">
-                <Select value={selectedStudent?.id} onValueChange={(val) => setSelectedStudent(students.find(s => s.id === val) || null)}>
-                  <SelectTrigger className="bg-slate-900/50 border-white/10 h-14 rounded-2xl text-white font-bold">
-                    <SelectValue placeholder="Selecione o Aluno" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-white/10 text-white rounded-2xl">
-                    {students.map(s => (
-                      <SelectItem key={s.id} value={s.id} className="rounded-xl">
-                        {s.nome_guerra}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <TabsContent value="missoes" className="space-y-6 mt-0 outline-none">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Input
+                placeholder="Pesquisar atividades e missões..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-12 h-14 bg-slate-900/50 border-white/10 rounded-2xl text-white focus:ring-rose-500/20"
+              />
             </div>
+            <div className="w-full md:w-64">
+              <Select value={selectedStudent?.id} onValueChange={(val) => setSelectedStudent(students.find(s => s.id === val) || null)}>
+                <SelectTrigger className="bg-slate-900/50 border-white/10 h-14 rounded-2xl text-white font-bold">
+                  <SelectValue placeholder="Selecione o Aluno" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white rounded-2xl">
+                  {students.map(s => (
+                    <SelectItem key={s.id} value={s.id} className="rounded-xl">
+                      {s.nome_guerra}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {missoes
-                .filter(m => m.titulo.toLowerCase().includes(search.toLowerCase()) || m.descricao?.toLowerCase().includes(search.toLowerCase()))
-                .map((missao, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {missoes
+              .filter(m => m.titulo.toLowerCase().includes(search.toLowerCase()) || m.descricao?.toLowerCase().includes(search.toLowerCase()))
+              .map((missao, i) => (
                 <motion.div
                   key={missao.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -299,7 +309,7 @@ export default function ResponsavelMateriaisPage() {
                       )}>
                         <Target className="w-7 h-7" />
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={cn(
@@ -333,17 +343,17 @@ export default function ResponsavelMateriaisPage() {
                                 <span className="text-xs font-bold text-slate-400 truncate uppercase tracking-tight">{mm.material.title}</span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <Button 
+                                <Button
                                   onClick={() => openExternal(mm.material.file_url)}
-                                  variant="ghost" 
+                                  variant="ghost"
                                   size="sm"
                                   className="h-8 text-blue-500 hover:text-blue-400 hover:bg-blue-500/10 font-black uppercase text-[9px] tracking-widest px-2"
                                 >
                                   Abrir
                                 </Button>
-                                <Button 
+                                <Button
                                   onClick={() => openExternal(mm.material.file_url)}
-                                  variant="ghost" 
+                                  variant="ghost"
                                   size="sm"
                                   className="h-8 text-slate-500 hover:text-white hover:bg-slate-800 font-black uppercase text-[9px] tracking-widest px-2"
                                 >
@@ -358,15 +368,15 @@ export default function ResponsavelMateriaisPage() {
                   </div>
                 </motion.div>
               ))}
-              {missoes.length === 0 && (
-                <div className="col-span-full py-20 text-center text-slate-500 font-medium bg-slate-900/20 rounded-[2rem] border border-dashed border-white/5">
-                  Nenhuma atividade ou missão lançada para este aluno.
-                </div>
-              )}
-            </div>
-          </TabsContent>
+            {missoes.length === 0 && (
+              <div className="col-span-full py-20 text-center text-slate-500 font-medium bg-slate-900/20 rounded-[2rem] border border-dashed border-white/5">
+                Nenhuma atividade ou missão lançada para este aluno.
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
-          <TabsContent value="pfm" className="space-y-6 mt-0 outline-none">
+        <TabsContent value="pfm" className="space-y-6 mt-0 outline-none">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <Input
@@ -393,7 +403,7 @@ export default function ResponsavelMateriaisPage() {
                   <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 border border-blue-500/20">
                     <FileText className="w-7 h-7" />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight mb-1 truncate group-hover:text-blue-500 transition-colors">{material.title}</h3>
                     <p className="text-slate-400 text-sm line-clamp-2 mb-4 font-medium">
@@ -403,9 +413,9 @@ export default function ResponsavelMateriaisPage() {
                       <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
                         {format(parseISO(material.created_at), "dd MMM yyyy", { locale: ptBR })}
                       </span>
-                      <Button 
+                      <Button
                         onClick={() => openExternal(material.file_url)}
-                        variant="ghost" 
+                        variant="ghost"
                         size="sm"
                         className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10 font-black uppercase text-[10px] tracking-widest"
                       >
@@ -447,7 +457,7 @@ export default function ResponsavelMateriaisPage() {
                   <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0 border border-indigo-500/20">
                     <Heart className="w-7 h-7" />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight mb-1 truncate group-hover:text-indigo-500 transition-colors">{material.title}</h3>
                     <p className="text-slate-400 text-sm line-clamp-2 mb-4 font-medium">
@@ -457,15 +467,15 @@ export default function ResponsavelMateriaisPage() {
                       <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
                         {format(parseISO(material.created_at), "dd MMM yyyy", { locale: ptBR })}
                       </span>
-                        <Button 
-                          onClick={() => openExternal(material.file_url)}
-                          variant="ghost" 
-                          size="sm"
-                          className="text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 font-black uppercase text-[10px] tracking-widest"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Baixar
-                        </Button>
+                      <Button
+                        onClick={() => openExternal(material.file_url)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 font-black uppercase text-[10px] tracking-widest"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Baixar
+                      </Button>
                     </div>
                   </div>
                 </div>
