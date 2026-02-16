@@ -93,6 +93,7 @@ export async function POST(request: Request) {
         user_metadata: {
           full_name: fullName,
           cpf,
+          student_id: studentId
         }
       });
 
@@ -109,6 +110,42 @@ export async function POST(request: Request) {
         .eq("id", authData.user.id);
 
       return NextResponse.json({ success: true, userId: authData.user.id });
+    }
+
+    if (action === "updateAccount") {
+      const { userId, fullName, role, cpf, studentId: rawStudentId } = data;
+      const studentId = rawStudentId === "none" ? null : rawStudentId;
+
+      // 1. Update auth metadata
+      const updateData: any = {};
+      if (fullName) updateData.full_name = fullName;
+      if (cpf) updateData.cpf = cpf;
+      if (studentId !== undefined) updateData.student_id = studentId;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: updateData
+        });
+        if (authError) throw authError;
+      }
+
+      // 2. Update profile table
+      const profileUpdate: any = {};
+      if (fullName) profileUpdate.full_name = fullName;
+      if (role) profileUpdate.role = role;
+      if (cpf) profileUpdate.cpf = cpf;
+      if (studentId !== undefined) profileUpdate.student_id = studentId;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        const { error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .update(profileUpdate)
+          .eq("id", userId);
+
+        if (profileError) throw profileError;
+      }
+
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ success: false, error: "Ação inválida" }, { status: 400 });

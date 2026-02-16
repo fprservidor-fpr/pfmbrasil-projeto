@@ -67,6 +67,7 @@ export default function GerenciarContasPage() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -78,6 +79,14 @@ export default function GerenciarContasPage() {
     password: "",
     fullName: "",
     role: "responsavel",
+    cpf: "",
+    studentId: ""
+  });
+
+  const [editAccountData, setEditAccountData] = useState({
+    userId: "",
+    fullName: "",
+    role: "",
     cpf: "",
     studentId: ""
   });
@@ -97,10 +106,10 @@ export default function GerenciarContasPage() {
   };
 
   useEffect(() => {
-    if (showCreateDialog) {
+    if (showCreateDialog || showEditDialog) {
       fetchStudents();
     }
-  }, [showCreateDialog]);
+  }, [showCreateDialog, showEditDialog]);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -229,6 +238,32 @@ export default function GerenciarContasPage() {
       }
     } catch (error) {
       toast.error("Erro ao criar conta");
+    }
+    setSaving(false);
+  };
+
+  const handleUpdateAccount = async () => {
+    if (!editAccountData.userId || !editAccountData.fullName) {
+      toast.error("Nome é obrigatório.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "updateAccount", ...editAccountData })
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success("Conta atualizada com sucesso!");
+        setShowEditDialog(false);
+        fetchAccounts();
+      } else {
+        toast.error("Erro: " + result.error);
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar conta");
     }
     setSaving(false);
   };
@@ -489,6 +524,25 @@ export default function GerenciarContasPage() {
                                   title="Ver detalhes"
                                 >
                                   <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-zinc-500 hover:text-sky-400 hover:bg-sky-500/10"
+                                  onClick={() => {
+                                    setSelectedAccount(acc);
+                                    setEditAccountData({
+                                      userId: acc.id,
+                                      fullName: acc.full_name,
+                                      role: acc.role,
+                                      cpf: acc.cpf || "",
+                                      studentId: acc.student_id || "none"
+                                    });
+                                    setShowEditDialog(true);
+                                  }}
+                                  title="Editar conta"
+                                >
+                                  <UserCog className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -894,6 +948,96 @@ export default function GerenciarContasPage() {
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar Conta"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCog className="w-5 h-5 text-sky-500" />
+              Editar Conta
+            </DialogTitle>
+            <DialogDescription className="text-zinc-500">
+              Atualizando dados de: <span className="text-white font-medium">{selectedAccount?.email}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-zinc-400 text-sm">Nome Completo</Label>
+              <Input
+                value={editAccountData.fullName}
+                onChange={(e) => setEditAccountData({ ...editAccountData, fullName: e.target.value })}
+                placeholder="Nome do usuário"
+                className="bg-zinc-800 border-zinc-700 text-white rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400 text-sm">Tipo de Conta</Label>
+              <Select
+                value={editAccountData.role}
+                onValueChange={(val) => setEditAccountData({ ...editAccountData, role: val })}
+              >
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="aluno">Aluno</SelectItem>
+                  <SelectItem value="responsavel">Responsável</SelectItem>
+                  <SelectItem value="instrutor">Instrutor</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400 text-sm">Vincular a Aluno</Label>
+              <Select
+                value={editAccountData.studentId}
+                onValueChange={(val) => setEditAccountData({ ...editAccountData, studentId: val })}
+              >
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white rounded-xl">
+                  <SelectValue placeholder="Selecione um aluno..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white max-h-60">
+                  <SelectItem value="none">Nenhum / Desvincular</SelectItem>
+                  {studentsList.map(student => (
+                    <SelectItem key={student.id} value={student.id}>
+                      {student.nome_completo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400 text-sm">CPF</Label>
+              <Input
+                value={editAccountData.cpf}
+                onChange={(e) => setEditAccountData({ ...editAccountData, cpf: e.target.value.replace(/\D/g, "") })}
+                placeholder="00000000000"
+                maxLength={11}
+                className="bg-zinc-800 border-zinc-700 text-white font-mono rounded-xl"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                className="flex-1 border-zinc-700 text-zinc-400 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleUpdateAccount}
+                disabled={saving}
+                className="flex-1 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-xl"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Alterações"}
               </Button>
             </div>
           </div>
