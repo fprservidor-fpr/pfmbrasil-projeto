@@ -15,9 +15,15 @@ import {
     FileText,
     Download,
     CalendarCheck,
-    LogIn
+    LogIn,
+    Award,
+    LineChart,
+    BookOpen,
+    Bell,
+    ChevronRight
 } from "lucide-react";
 import { StarField } from "@/components/StarField";
+import { AveroFooter } from "@/components/AveroFooter";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +45,7 @@ export default function PortalPage() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-yellow-400/30 overflow-x-hidden scroll-smooth pb-40">
+        <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-yellow-400/30 overflow-x-hidden scroll-smooth">
             {/* Background Effects */}
             <div className="fixed inset-0 z-0">
                 <StarField />
@@ -151,9 +157,9 @@ export default function PortalPage() {
 
                             <div className="space-y-8 relative z-10">
                                 <div className="flex gap-6">
-                                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-yellow-400 font-black text-sm">01</div>
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-yellow-500 font-black text-sm">01</div>
                                     <div className="space-y-3">
-                                        <h4 className="flex items-center gap-2 font-black uppercase text-xs tracking-widest text-yellow-400">
+                                        <h4 className="flex items-center gap-2 font-black uppercase text-xs tracking-widest text-yellow-500">
                                             <Mail className="w-4 h-4" /> E-mail de Login
                                         </h4>
                                         <p className="text-zinc-400 text-sm leading-relaxed">Use seu nº de matrícula seguido de <strong className="text-white">@pfm.com</strong></p>
@@ -170,7 +176,7 @@ export default function PortalPage() {
                                 </div>
 
                                 <div className="flex gap-6">
-                                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-yellow-400 font-black text-sm">02</div>
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-yellow-500 font-black text-sm">02</div>
                                     <div className="space-y-3">
                                         <h4 className="flex items-center gap-2 font-black uppercase text-xs tracking-widest text-yellow-500">
                                             <Key className="w-4 h-4" /> Senha Inicial
@@ -181,6 +187,41 @@ export default function PortalPage() {
                             </div>
                         </motion.div>
                     </div>
+
+                    {/* Features Section - Moved from Home to Portal as requested in Image 1 */}
+                    <section id="recursos" className="py-24 px-4 mb-24">
+                        <div className="text-center mb-16">
+                            <motion.div {...fadeInUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-400/5 border border-yellow-400/20 text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-4">
+                                <Award className="w-3.5 h-3.5" />
+                                <span>Diferenciais</span>
+                            </motion.div>
+                            <motion.h2 {...fadeInUp} className="text-4xl md:text-6xl font-black mb-6 uppercase italic tracking-tighter">
+                                Recursos da Plataforma <span className="text-yellow-400">PFM Digital</span>
+                            </motion.h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[
+                                { icon: CalendarCheck, title: "Calendário Acadêmico", desc: "Acompanhe todas as atividades, eventos e prazos importantes em tempo real." },
+                                { icon: LineChart, title: "Boletim Online", desc: "Acesso instantâneo a frequência escolar e desempenho em todas as disciplinas." },
+                                { icon: BookOpen, title: "Material Didático", desc: "Biblioteca digital com conteúdos de apoio e recursos exclusivos para alunos." },
+                                { icon: Bell, title: "Notificações", desc: "Receba alertas instantâneos sobre eventos e comunicados diretamente na plataforma." }
+                            ].map((feature, i) => (
+                                <motion.div
+                                    key={i}
+                                    {...fadeInUp}
+                                    transition={{ delay: i * 0.1 }}
+                                    className="p-8 bg-zinc-900/40 border border-white/5 rounded-3xl hover:border-yellow-400/30 transition-all group"
+                                >
+                                    <div className="w-14 h-14 rounded-2xl bg-zinc-800 border border-white/5 flex items-center justify-center mb-6 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
+                                        <feature.icon className="w-7 h-7" />
+                                    </div>
+                                    <h4 className="font-black uppercase tracking-tight text-lg mb-3">{feature.title}</h4>
+                                    <p className="text-zinc-500 text-sm leading-relaxed font-medium">{feature.desc}</p>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </section>
 
                     {/* Downloads Section */}
                     <section className="py-24 px-4 bg-zinc-900/20 rounded-[3rem] border border-white/5 mb-24">
@@ -230,14 +271,14 @@ export default function PortalPage() {
                     {/* Help Section */}
                     <motion.div
                         {...fadeInUp}
-                        className="bg-yellow-500 rounded-[2.5rem] p-10 flex flex-col md:flex-row items-center gap-8 shadow-2xl relative overflow-hidden group"
+                        className="bg-yellow-500 rounded-[2.5rem] p-10 flex flex-col md:flex-row items-center gap-8 shadow-2xl relative overflow-hidden group mb-12"
                     >
                         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         <div className="w-16 h-16 rounded-full bg-black flex items-center justify-center shrink-0">
                             <Headset className="w-8 h-8 text-yellow-500" />
                         </div>
                         <div className="flex-1 text-center md:text-left">
-                            <h3 className="text-xl font-black uppercase tracking-tight mb-1 text-black">Ainda com Dúvidas?</h3>
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-1 text-black font-bold">AINDA COM DÚVIDAS?</h3>
                             <p className="text-black/70 text-sm font-bold">Nossa central de atendimento está disponível para ajudar você.</p>
                         </div>
                         <Link
@@ -249,23 +290,40 @@ export default function PortalPage() {
                             Suporte WhatsApp
                         </Link>
                     </motion.div>
+
+                    {/* Central Access Button - As requested in Image 4 */}
+                    <motion.div
+                        {...fadeInUp}
+                        className="flex justify-center items-center py-12"
+                    >
+                        <Link href="/login" className="w-full max-w-xl">
+                            <Button size="xl" className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest italic rounded-2xl shadow-[0_20px_50px_rgba(234,179,8,0.3)] border-b-4 border-yellow-700 active:border-b-0 h-24 text-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4">
+                                <LogIn className="w-8 h-8" />
+                                ACESSAR SISTEMA
+                            </Button>
+                        </Link>
+                    </motion.div>
+
+                    {/* CTA Section - Moved from Home to Portal as requested in Image 2 */}
+                    <section className="py-24 px-4 relative overflow-hidden text-center">
+                        <motion.h2
+                            {...fadeInUp}
+                            className="text-5xl md:text-7xl font-black mb-8 uppercase italic leading-none"
+                        >
+                            PRONTO PARA <br /> <span className="text-yellow-400 drop-shadow-2xl">EVOLUIR?</span>
+                        </motion.h2>
+                        <motion.p
+                            {...fadeInUp}
+                            transition={{ delay: 0.1 }}
+                            className="text-zinc-400 text-lg md:text-xl font-medium max-w-2xl mx-auto mb-12"
+                        >
+                            Transforme o futuro através da educação. Inicie sua jornada no Programa Força Mirim hoje mesmo.
+                        </motion.p>
+                    </section>
                 </div>
             </main>
 
-            {/* Fixed Floating Button */}
-            <motion.div
-                initial={{ y: 100, x: "-50%", opacity: 0 }}
-                animate={{ y: 0, x: "-50%", opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-                className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
-            >
-                <Link href="/login" className="block">
-                    <Button size="xl" className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest italic rounded-2xl shadow-[0_20px_50px_rgba(234,179,8,0.3)] border-b-4 border-yellow-700 active:border-b-0 h-20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4">
-                        <LogIn className="w-6 h-6" />
-                        Acessar Sistema
-                    </Button>
-                </Link>
-            </motion.div>
+            <AveroFooter />
         </div>
     );
 }
