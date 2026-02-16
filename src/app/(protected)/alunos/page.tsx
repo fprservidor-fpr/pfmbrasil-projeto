@@ -49,7 +49,8 @@ import {
   FileText,
   MousePointer2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInYears, startOfMonth, endOfMonth } from "date-fns";
@@ -103,6 +104,12 @@ export default function StudentsPage() {
   const { profile, simulatedRole } = useAuth();
   const [students, setStudents] = useState<any[]>([]);
   const [turmas, setTurmas] = useState<any[]>([]);
+
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5 }
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -430,26 +437,29 @@ export default function StudentsPage() {
   return (
     <div className="space-y-6">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-800 rounded-3xl p-8"
+        {...fadeInUp}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4"
       >
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Users className="w-7 h-7 text-white" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">Alunos Efetivados</h1>
-              <p className="text-zinc-500 text-sm">Lista de jovens com matrícula ativa no programa</p>
-            </div>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">Gestão de Contingente</span>
           </div>
-          <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold px-4 py-2 rounded-xl">
-            {students.filter(s => s.status === 'ativo').length} ativos
-          </Badge>
+          <h1 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-4">
+            CONTROLE DE <span className="text-emerald-500">ALUNOS</span>
+          </h1>
+          <p className="text-zinc-500 font-medium max-w-xl">
+            Monitoramento completo do efetivo, histórico de comportamento e evolução de graduação.
+          </p>
+        </div>
+        <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-[2rem] flex items-center gap-6 shadow-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+            <Users className="w-6 h-6 text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-white leading-none">{students.filter(s => s.status === 'ativo').length}</p>
+            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-1">Efetivo Ativo</p>
+          </div>
         </div>
       </motion.div>
 

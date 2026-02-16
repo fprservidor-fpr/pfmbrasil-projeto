@@ -13,10 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { 
-  AlertTriangle, 
-  Calendar, 
-  Save, 
+import {
+  AlertTriangle,
+  Calendar,
+  Save,
   Loader2,
   Trash2,
   Plus,
@@ -25,11 +25,13 @@ import {
   Tag,
   FileSpreadsheet,
   Database,
-  Download
+  Download,
+  Sparkles
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
 
 const PERFIS_DISPONIVEIS = [
   { id: "admin", label: "Administrador" },
@@ -56,7 +58,7 @@ export default function GestaoSistemaPage() {
   const [activeTab, setActiveTab] = useState("avisos");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const [avisos, setAvisos] = useState<any[]>([]);
   const [eventos, setEventos] = useState<any[]>([]);
   const [tiposEventos, setTiposEventos] = useState<any[]>([]);
@@ -68,7 +70,7 @@ export default function GestaoSistemaPage() {
     recesso_fim: "",
     ano_letivo_ativo: true
   });
-  
+
   const [newAviso, setNewAviso] = useState({
     tipo: "geral",
     titulo: "",
@@ -248,315 +250,315 @@ export default function GestaoSistemaPage() {
     }
   };
 
-    const togglePerfilVisibilidade = (perfilId: string) => {
-      const current = newTipoEvento.visibilidade_perfis;
-      if (current.includes(perfilId)) {
-        setNewTipoEvento({ ...newTipoEvento, visibilidade_perfis: current.filter(p => p !== perfilId) });
-      } else {
-        setNewTipoEvento({ ...newTipoEvento, visibilidade_perfis: [...current, perfilId] });
-      }
-    };
+  const togglePerfilVisibilidade = (perfilId: string) => {
+    const current = newTipoEvento.visibilidade_perfis;
+    if (current.includes(perfilId)) {
+      setNewTipoEvento({ ...newTipoEvento, visibilidade_perfis: current.filter(p => p !== perfilId) });
+    } else {
+      setNewTipoEvento({ ...newTipoEvento, visibilidade_perfis: [...current, perfilId] });
+    }
+  };
 
-    const handleExportGoogleContacts = async () => {
-      setSaving(true);
-      try {
-        const { data: students, error } = await supabase
-          .from("students")
-          .select("nome_completo, whatsapp, guardian1_whatsapp, guardian2_whatsapp, responsavel_whatsapp")
-          .eq("status", "ativo")
-          .eq("is_test", false);
+  const handleExportGoogleContacts = async () => {
+    setSaving(true);
+    try {
+      const { data: students, error } = await supabase
+        .from("students")
+        .select("nome_completo, whatsapp, guardian1_whatsapp, guardian2_whatsapp, responsavel_whatsapp")
+        .eq("status", "ativo")
+        .eq("is_test", false);
 
-        if (error) throw error;
-        if (!students || students.length === 0) {
-          toast.error("Nenhum aluno ativo encontrado para exportar.");
-          return;
-        }
-
-        const alunosMap = new Map<string, string>();
-        const responsaveisMap = new Map<string, { tipo: string, alunos: string[] }>();
-
-        students.forEach((s) => {
-          const nome = s.nome_completo;
-          
-          if (s.whatsapp) {
-            if (!alunosMap.has(s.whatsapp)) {
-              alunosMap.set(s.whatsapp, nome);
-            }
-          }
-
-          if (s.guardian1_whatsapp) {
-            const tel = s.guardian1_whatsapp;
-            if (!responsaveisMap.has(tel)) {
-              responsaveisMap.set(tel, { tipo: "RESP 01", alunos: [] });
-            }
-            responsaveisMap.get(tel)?.alunos.push(nome);
-          }
-
-          if (s.guardian2_whatsapp) {
-            const tel = s.guardian2_whatsapp;
-            if (!responsaveisMap.has(tel)) {
-              responsaveisMap.set(tel, { tipo: "RESP 02", alunos: [] });
-            }
-            responsaveisMap.get(tel)?.alunos.push(nome);
-          }
-
-          // Caso exista um terceiro responsável genérico
-          if (s.responsavel_whatsapp && s.responsavel_whatsapp !== s.guardian1_whatsapp && s.responsavel_whatsapp !== s.guardian2_whatsapp) {
-            const tel = s.responsavel_whatsapp;
-            if (!responsaveisMap.has(tel)) {
-              responsaveisMap.set(tel, { tipo: "RESP", alunos: [] });
-            }
-            responsaveisMap.get(tel)?.alunos.push(nome);
-          }
-        });
-
-        const csvRows = [["Name", "Phone 1 - Value", "Phone 1 - Type"]];
-
-        alunosMap.forEach((nome, telefone) => {
-          csvRows.push([nome, telefone, "Mobile"]);
-        });
-
-        responsaveisMap.forEach((info, telefone) => {
-          const nomeCompleto = `${info.tipo} - ${info.alunos.join(" E ")}`;
-          csvRows.push([nomeCompleto, telefone, "Mobile"]);
-        });
-
-        const csvContent = csvRows.map(row => 
-          row.map(cell => {
-            const str = String(cell || "").replace(/"/g, '""');
-            return str.includes(",") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
-          }).join(",")
-        ).join("\n");
-
-        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `contatos_google_pfm_${format(new Date(), "yyyy-MM-dd")}.csv`);
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success(`Exportação de ${csvRows.length - 1} contatos concluída!`);
-      } catch (error: any) {
-        toast.error("Erro na exportação de contatos: " + error.message);
-      } finally {
-        setSaving(false);
-      }
-    };
-
-    const handleExport = async (table: string) => {
-      try {
-        const { data, error } = await supabase.from(table).select("*");
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          toast.error("Nenhum dado encontrado para exportar.");
-          return;
-        }
-
-        const headers = Object.keys(data[0]);
-        const csvContent = [
-          headers.join(";"),
-          ...data.map((row: any) => 
-            headers.map(header => {
-              const val = row[header];
-              if (val === null || val === undefined) return "";
-              const str = String(val).replace(/"/g, '""');
-              return str.includes(";") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
-            }).join(";")
-          )
-        ].join("\n");
-
-        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${table}_backup_${format(new Date(), "yyyy-MM-dd")}.csv`);
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success(`Exportação de ${table} concluída!`);
-      } catch (error: any) {
-        toast.error("Erro na exportação: " + error.message);
-      }
-    };
-
-    const handleExportAll = async () => {
-      setSaving(true);
-      try {
-        const tables = ["students", "pre_matriculas", "turmas", "instructors", "tipos_eventos", "configuracoes_sistema", "avisos"];
-        const allData: any[] = [];
-        const allKeys = new Set<string>(["_tabela"]);
-
-        for (const table of tables) {
-          const { data } = await supabase.from(table).select("*");
-          if (data && data.length > 0) {
-            data.forEach((row: any) => {
-              const enrichedRow = { _tabela: table, ...row };
-              allData.push(enrichedRow);
-              Object.keys(enrichedRow).forEach(key => allKeys.add(key));
-            });
-          }
-        }
-
-        if (allData.length === 0) {
-          toast.error("Nenhum dado encontrado para exportar.");
-          return;
-        }
-
-        const headers = Array.from(allKeys);
-        const csvContent = [
-          headers.join(";"),
-          ...allData.map((row: any) => 
-            headers.map(header => {
-              const val = row[header];
-              if (val === null || val === undefined) return "";
-              const str = String(val).replace(/"/g, '""');
-              return str.includes(";") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
-            }).join(";")
-          )
-        ].join("\n");
-
-        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `master_backup_pfm_${format(new Date(), "yyyy-MM-dd")}.csv`);
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Master Backup exportado com sucesso!");
-      } catch (error: any) {
-        toast.error("Erro na exportação master: " + error.message);
-      } finally {
-        setSaving(false);
-      }
-    };
-
-    const handleImport = async (file?: File) => {
-      const fileInput = document.getElementById("csv-file-input") as HTMLInputElement;
-      const targetFile = file || fileInput?.files?.[0];
-      
-      if (!targetFile) {
-        toast.error("Selecione um arquivo CSV.");
+      if (error) throw error;
+      if (!students || students.length === 0) {
+        toast.error("Nenhum aluno ativo encontrado para exportar.");
         return;
       }
 
-      setSaving(true);
-      const reader = new FileReader();
+      const alunosMap = new Map<string, string>();
+      const responsaveisMap = new Map<string, { tipo: string, alunos: string[] }>();
 
-      reader.onload = async (e) => {
-        try {
-          const text = e.target?.result as string;
-          const lines = text.split("\n").filter(l => l.trim());
-          if (lines.length < 2) throw new Error("Arquivo CSV vazio ou inválido.");
+      students.forEach((s) => {
+        const nome = s.nome_completo;
 
-          // Detect delimiter
-          const firstLine = lines[0];
-          const delimiter = firstLine.includes(";") ? ";" : ",";
-          
-          const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^\ufeff/, ""));
-          
-          const rows = lines.slice(1).map(line => {
-            const values: string[] = [];
-            let current = "";
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-              const char = line[i];
-              if (char === '"') {
-                if (inQuotes && line[i+1] === '"') {
-                  current += '"';
-                  i++;
-                } else {
-                  inQuotes = !inQuotes;
-                }
-              } else if (char === delimiter && !inQuotes) {
-                values.push(current);
-                current = "";
-              } else {
-                current += char;
-              }
-            }
-            values.push(current);
-            
-            const obj: any = {};
-            headers.forEach((header, index) => {
-              let val: any = values[index]?.trim();
-              if (val === "true") val = true;
-              if (val === "false") val = false;
-              if (val === "" || val === "null") val = null;
-              obj[header] = val;
-            });
-            return obj;
-          });
-
-          // Check if it's a Master Backup or specific table
-          const isMaster = headers.includes("_tabela");
-          
-          if (isMaster) {
-            const groups = rows.reduce((acc: any, row: any) => {
-              const table = row._tabela;
-              if (!table) return acc;
-              if (!acc[table]) acc[table] = [];
-              const { _tabela, ...cleanRow } = row;
-              
-              // Filter out null IDs if they are empty strings or invalid
-              if (cleanRow.id === null || cleanRow.id === "") delete cleanRow.id;
-              
-              // Remove keys that don't belong to this table if possible, 
-              // but Supabase upsert usually ignores extra columns or errors.
-              // To be safe, we should ideally know the columns of each table.
-              // For now, we'll try to push and let Supabase handle it or filter nulls.
-              const finalRow: any = {};
-              Object.keys(cleanRow).forEach(k => {
-                if (cleanRow[k] !== undefined && cleanRow[k] !== null) {
-                  finalRow[k] = cleanRow[k];
-                }
-              });
-
-              acc[table].push(finalRow);
-              return acc;
-            }, {});
-
-            let totalCount = 0;
-            for (const table of Object.keys(groups)) {
-              const { error } = await supabase.from(table).upsert(groups[table]);
-              if (error) {
-                console.error(`Erro ao importar tabela ${table}:`, error);
-                toast.error(`Erro em ${table}: ${error.message}`);
-              } else {
-                totalCount += groups[table].length;
-              }
-            }
-            toast.success(`${totalCount} registros restaurados de várias tabelas!`);
-          } else {
-            const tableSpan = (document.querySelector('[id^="import-table"] button span') as HTMLElement)?.innerText?.toLowerCase();
-            const table = tableSpan?.includes("alunos") ? "students" : 
-                          tableSpan?.includes("pré") ? "pre_matriculas" : 
-                          tableSpan?.includes("turmas") ? "turmas" : 
-                          tableSpan?.includes("instrutores") ? "instructors" : "";
-
-            if (!table) throw new Error("Selecione a tabela de destino para importação individual.");
-            
-            const { error } = await supabase.from(table).upsert(rows);
-            if (error) throw error;
-            toast.success(`${rows.length} registros importados em ${table}!`);
+        if (s.whatsapp) {
+          if (!alunosMap.has(s.whatsapp)) {
+            alunosMap.set(s.whatsapp, nome);
           }
-
-          fetchData();
-        } catch (error: any) {
-          toast.error("Erro na importação: " + error.message);
-        } finally {
-          setSaving(false);
-          if (fileInput) fileInput.value = "";
         }
-      };
 
-      reader.readAsText(targetFile);
+        if (s.guardian1_whatsapp) {
+          const tel = s.guardian1_whatsapp;
+          if (!responsaveisMap.has(tel)) {
+            responsaveisMap.set(tel, { tipo: "RESP 01", alunos: [] });
+          }
+          responsaveisMap.get(tel)?.alunos.push(nome);
+        }
+
+        if (s.guardian2_whatsapp) {
+          const tel = s.guardian2_whatsapp;
+          if (!responsaveisMap.has(tel)) {
+            responsaveisMap.set(tel, { tipo: "RESP 02", alunos: [] });
+          }
+          responsaveisMap.get(tel)?.alunos.push(nome);
+        }
+
+        // Caso exista um terceiro responsável genérico
+        if (s.responsavel_whatsapp && s.responsavel_whatsapp !== s.guardian1_whatsapp && s.responsavel_whatsapp !== s.guardian2_whatsapp) {
+          const tel = s.responsavel_whatsapp;
+          if (!responsaveisMap.has(tel)) {
+            responsaveisMap.set(tel, { tipo: "RESP", alunos: [] });
+          }
+          responsaveisMap.get(tel)?.alunos.push(nome);
+        }
+      });
+
+      const csvRows = [["Name", "Phone 1 - Value", "Phone 1 - Type"]];
+
+      alunosMap.forEach((nome, telefone) => {
+        csvRows.push([nome, telefone, "Mobile"]);
+      });
+
+      responsaveisMap.forEach((info, telefone) => {
+        const nomeCompleto = `${info.tipo} - ${info.alunos.join(" E ")}`;
+        csvRows.push([nomeCompleto, telefone, "Mobile"]);
+      });
+
+      const csvContent = csvRows.map(row =>
+        row.map(cell => {
+          const str = String(cell || "").replace(/"/g, '""');
+          return str.includes(",") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
+        }).join(",")
+      ).join("\n");
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `contatos_google_pfm_${format(new Date(), "yyyy-MM-dd")}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Exportação de ${csvRows.length - 1} contatos concluída!`);
+    } catch (error: any) {
+      toast.error("Erro na exportação de contatos: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExport = async (table: string) => {
+    try {
+      const { data, error } = await supabase.from(table).select("*");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.error("Nenhum dado encontrado para exportar.");
+        return;
+      }
+
+      const headers = Object.keys(data[0]);
+      const csvContent = [
+        headers.join(";"),
+        ...data.map((row: any) =>
+          headers.map(header => {
+            const val = row[header];
+            if (val === null || val === undefined) return "";
+            const str = String(val).replace(/"/g, '""');
+            return str.includes(";") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
+          }).join(";")
+        )
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${table}_backup_${format(new Date(), "yyyy-MM-dd")}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exportação de ${table} concluída!`);
+    } catch (error: any) {
+      toast.error("Erro na exportação: " + error.message);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setSaving(true);
+    try {
+      const tables = ["students", "pre_matriculas", "turmas", "instructors", "tipos_eventos", "configuracoes_sistema", "avisos"];
+      const allData: any[] = [];
+      const allKeys = new Set<string>(["_tabela"]);
+
+      for (const table of tables) {
+        const { data } = await supabase.from(table).select("*");
+        if (data && data.length > 0) {
+          data.forEach((row: any) => {
+            const enrichedRow = { _tabela: table, ...row };
+            allData.push(enrichedRow);
+            Object.keys(enrichedRow).forEach(key => allKeys.add(key));
+          });
+        }
+      }
+
+      if (allData.length === 0) {
+        toast.error("Nenhum dado encontrado para exportar.");
+        return;
+      }
+
+      const headers = Array.from(allKeys);
+      const csvContent = [
+        headers.join(";"),
+        ...allData.map((row: any) =>
+          headers.map(header => {
+            const val = row[header];
+            if (val === null || val === undefined) return "";
+            const str = String(val).replace(/"/g, '""');
+            return str.includes(";") || str.includes("\n") || str.includes("\"") ? `"${str}"` : str;
+          }).join(";")
+        )
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `master_backup_pfm_${format(new Date(), "yyyy-MM-dd")}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Master Backup exportado com sucesso!");
+    } catch (error: any) {
+      toast.error("Erro na exportação master: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleImport = async (file?: File) => {
+    const fileInput = document.getElementById("csv-file-input") as HTMLInputElement;
+    const targetFile = file || fileInput?.files?.[0];
+
+    if (!targetFile) {
+      toast.error("Selecione um arquivo CSV.");
+      return;
+    }
+
+    setSaving(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split("\n").filter(l => l.trim());
+        if (lines.length < 2) throw new Error("Arquivo CSV vazio ou inválido.");
+
+        // Detect delimiter
+        const firstLine = lines[0];
+        const delimiter = firstLine.includes(";") ? ";" : ",";
+
+        const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^\ufeff/, ""));
+
+        const rows = lines.slice(1).map(line => {
+          const values: string[] = [];
+          let current = "";
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === delimiter && !inQuotes) {
+              values.push(current);
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          values.push(current);
+
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            let val: any = values[index]?.trim();
+            if (val === "true") val = true;
+            if (val === "false") val = false;
+            if (val === "" || val === "null") val = null;
+            obj[header] = val;
+          });
+          return obj;
+        });
+
+        // Check if it's a Master Backup or specific table
+        const isMaster = headers.includes("_tabela");
+
+        if (isMaster) {
+          const groups = rows.reduce((acc: any, row: any) => {
+            const table = row._tabela;
+            if (!table) return acc;
+            if (!acc[table]) acc[table] = [];
+            const { _tabela, ...cleanRow } = row;
+
+            // Filter out null IDs if they are empty strings or invalid
+            if (cleanRow.id === null || cleanRow.id === "") delete cleanRow.id;
+
+            // Remove keys that don't belong to this table if possible, 
+            // but Supabase upsert usually ignores extra columns or errors.
+            // To be safe, we should ideally know the columns of each table.
+            // For now, we'll try to push and let Supabase handle it or filter nulls.
+            const finalRow: any = {};
+            Object.keys(cleanRow).forEach(k => {
+              if (cleanRow[k] !== undefined && cleanRow[k] !== null) {
+                finalRow[k] = cleanRow[k];
+              }
+            });
+
+            acc[table].push(finalRow);
+            return acc;
+          }, {});
+
+          let totalCount = 0;
+          for (const table of Object.keys(groups)) {
+            const { error } = await supabase.from(table).upsert(groups[table]);
+            if (error) {
+              console.error(`Erro ao importar tabela ${table}:`, error);
+              toast.error(`Erro em ${table}: ${error.message}`);
+            } else {
+              totalCount += groups[table].length;
+            }
+          }
+          toast.success(`${totalCount} registros restaurados de várias tabelas!`);
+        } else {
+          const tableSpan = (document.querySelector('[id^="import-table"] button span') as HTMLElement)?.innerText?.toLowerCase();
+          const table = tableSpan?.includes("alunos") ? "students" :
+            tableSpan?.includes("pré") ? "pre_matriculas" :
+              tableSpan?.includes("turmas") ? "turmas" :
+                tableSpan?.includes("instrutores") ? "instructors" : "";
+
+          if (!table) throw new Error("Selecione a tabela de destino para importação individual.");
+
+          const { error } = await supabase.from(table).upsert(rows);
+          if (error) throw error;
+          toast.success(`${rows.length} registros importados em ${table}!`);
+        }
+
+        fetchData();
+      } catch (error: any) {
+        toast.error("Erro na importação: " + error.message);
+      } finally {
+        setSaving(false);
+        if (fileInput) fileInput.value = "";
+      }
     };
+
+    reader.readAsText(targetFile);
+  };
 
   if (profile?.role !== "admin" && profile?.role !== "instructor" && profile?.role !== "instrutor") {
     return (
@@ -569,7 +571,30 @@ export default function GestaoSistemaPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-white tracking-tight">Gestão do Sistema</h1>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4"
+      >
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em]">Painel de Controle Principal</span>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-4">
+            GESTÃO DO <span className="text-cyan-500">SISTEMA</span>
+          </h1>
+          <p className="text-zinc-500 font-medium max-w-xl">
+            Configurações globais, calendário letivo, avisos e ferramentas de manutenção da plataforma.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Badge className="bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold px-6 py-3 rounded-2xl flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Root Access
+          </Badge>
+        </div>
+      </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-zinc-900 border border-zinc-800 p-1 grid grid-cols-4 w-full max-w-3xl">
@@ -579,129 +604,129 @@ export default function GestaoSistemaPage() {
           <TabsTrigger value="calendario" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2">
             <Calendar className="w-4 h-4" /> Calendário
           </TabsTrigger>
-            <TabsTrigger value="tipos" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2">
-              <Tag className="w-4 h-4" /> Tipos Evento
-            </TabsTrigger>
-            <TabsTrigger value="config" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2">
-              <Settings className="w-4 h-4" /> Ano Letivo
-            </TabsTrigger>
-            <TabsTrigger value="backup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white flex gap-2">
-              <Database className="w-4 h-4" /> Backup (CSV)
-            </TabsTrigger>
-          </TabsList>
+          <TabsTrigger value="tipos" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2">
+            <Tag className="w-4 h-4" /> Tipos Evento
+          </TabsTrigger>
+          <TabsTrigger value="config" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex gap-2">
+            <Settings className="w-4 h-4" /> Ano Letivo
+          </TabsTrigger>
+          <TabsTrigger value="backup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white flex gap-2">
+            <Database className="w-4 h-4" /> Backup (CSV)
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="backup" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-zinc-900/50 border-zinc-800">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Save className="w-5 h-5 text-emerald-500" /> Exportar Dados
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-zinc-400 text-sm">
-                    Baixe os dados atuais do sistema. Os arquivos usam <span className="text-white font-bold">ponto-e-vírgula (;)</span> como separador para melhor compatibilidade com Excel.
+        <TabsContent value="backup" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Save className="w-5 h-5 text-emerald-500" /> Exportar Dados
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-zinc-400 text-sm">
+                  Baixe os dados atuais do sistema. Os arquivos usam <span className="text-white font-bold">ponto-e-vírgula (;)</span> como separador para melhor compatibilidade com Excel.
+                </p>
+
+                <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20 mb-4">
+                  <h4 className="text-emerald-400 font-bold text-sm mb-2 flex items-center gap-2">
+                    <Download className="w-4 h-4" /> Recomendado: Master Backup
+                  </h4>
+                  <p className="text-xs text-zinc-400 mb-4">
+                    Exporta todas as tabelas (Alunos, Turmas, Instrutores, etc.) em um único arquivo CSV. Ideal para backups completos.
                   </p>
-                  
-                  <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20 mb-4">
-                    <h4 className="text-emerald-400 font-bold text-sm mb-2 flex items-center gap-2">
-                      <Download className="w-4 h-4" /> Recomendado: Master Backup
-                    </h4>
-                    <p className="text-xs text-zinc-400 mb-4">
-                      Exporta todas as tabelas (Alunos, Turmas, Instrutores, etc.) em um único arquivo CSV. Ideal para backups completos.
-                    </p>
-                    <Button 
-                      onClick={handleExportAll} 
-                      disabled={saving}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
-                      Exportar Tudo (Backup Completo)
+                  <Button
+                    onClick={handleExportAll}
+                    disabled={saving}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                    Exportar Tudo (Backup Completo)
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-zinc-500 text-xs uppercase font-bold">Exportações Individuais</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button onClick={() => handleExport("students")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
+                      Alunos
                     </Button>
+                    <Button onClick={() => handleExport("pre_matriculas")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
+                      Pré-Matrículas
+                    </Button>
+                    <Button onClick={() => handleExport("turmas")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
+                      Turmas
+                    </Button>
+                    <Button onClick={() => handleExport("instructors")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
+                      Instrutores
+                    </Button>
+                    <Link href="/configuracoes/contatos">
+                      <Button variant="outline" className="justify-start border-blue-500/30 hover:bg-blue-500/10 text-blue-400 text-xs gap-2">
+                        <Download className="w-3 h-3" /> Contatos Google
+                      </Button>
+                    </Link>
+
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-blue-500" /> Importar / Restaurar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <p className="text-xs text-zinc-400">
+                    O sistema detecta automaticamente se o arquivo é um <span className="text-white font-bold">Master Backup</span> ou uma tabela individual.
+                    <br /><br />
+                    Se for um Master Backup, <span className="text-blue-400">todas as tabelas serão atualizadas simultaneamente</span> ignorando a seleção abaixo.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2" id="import-table">
+                    <Label className="text-zinc-400">Tabela de Destino (apenas para arquivos individuais)</Label>
+                    <Select>
+                      <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
+                        <SelectValue placeholder="Selecione a tabela" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                        <SelectItem value="students">Alunos (students)</SelectItem>
+                        <SelectItem value="pre_matriculas">Pré-Matrículas</SelectItem>
+                        <SelectItem value="turmas">Turmas</SelectItem>
+                        <SelectItem value="instructors">Instrutores</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-zinc-500 text-xs uppercase font-bold">Exportações Individuais</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button onClick={() => handleExport("students")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
-                        Alunos
-                      </Button>
-                      <Button onClick={() => handleExport("pre_matriculas")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
-                        Pré-Matrículas
-                      </Button>
-                      <Button onClick={() => handleExport("turmas")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
-                        Turmas
-                      </Button>
-                        <Button onClick={() => handleExport("instructors")} variant="outline" className="justify-start border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs">
-                          Instrutores
-                        </Button>
-                            <Link href="/configuracoes/contatos">
-                              <Button variant="outline" className="justify-start border-blue-500/30 hover:bg-blue-500/10 text-blue-400 text-xs gap-2">
-                                <Download className="w-3 h-3" /> Contatos Google
-                              </Button>
-                            </Link>
-
-                      </div>
-                    </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-zinc-900/50 border-zinc-800">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-blue-500" /> Importar / Restaurar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <p className="text-xs text-zinc-400">
-                      O sistema detecta automaticamente se o arquivo é um <span className="text-white font-bold">Master Backup</span> ou uma tabela individual. 
-                      <br /><br />
-                      Se for um Master Backup, <span className="text-blue-400">todas as tabelas serão atualizadas simultaneamente</span> ignorando a seleção abaixo.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-zinc-400">Tabela de Destino (apenas para arquivos individuais)</Label>
-                      <Select id="import-table">
-                        <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-                          <SelectValue placeholder="Selecione a tabela" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                          <SelectItem value="students">Alunos (students)</SelectItem>
-                          <SelectItem value="pre_matriculas">Pré-Matrículas</SelectItem>
-                          <SelectItem value="turmas">Turmas</SelectItem>
-                          <SelectItem value="instructors">Instrutores</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-zinc-400">Arquivo CSV</Label>
-                      <div className="relative group">
-                        <Input 
-                          type="file" 
-                          accept=".csv"
-                          id="csv-file-input"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImport(file);
-                          }}
-                          className="bg-zinc-900 border-zinc-700 text-white file:bg-zinc-800 file:text-zinc-300 file:border-0 cursor-pointer h-12"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[10px] text-amber-500 font-bold uppercase tracking-wider">
-                      <AlertTriangle className="w-3 h-3" />
-                      Atenção: Registros existentes serão atualizados (Upsert)
+                    <Label className="text-zinc-400">Arquivo CSV</Label>
+                    <div className="relative group">
+                      <Input
+                        type="file"
+                        accept=".csv"
+                        id="csv-file-input"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImport(file);
+                        }}
+                        className="bg-zinc-900 border-zinc-700 text-white file:bg-zinc-800 file:text-zinc-300 file:border-0 cursor-pointer h-12"
+                      />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+
+                  <div className="flex items-center gap-2 text-[10px] text-amber-500 font-bold uppercase tracking-wider">
+                    <AlertTriangle className="w-3 h-3" />
+                    Atenção: Registros existentes serão atualizados (Upsert)
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
 
         <TabsContent value="avisos" className="space-y-6">
@@ -727,7 +752,7 @@ export default function GestaoSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Título</Label>
-                  <Input 
+                  <Input
                     value={newAviso.titulo}
                     onChange={(e) => setNewAviso({ ...newAviso, titulo: e.target.value })}
                     placeholder="Ex: Atenção - Corte de Cabelo"
@@ -737,7 +762,7 @@ export default function GestaoSistemaPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-zinc-400">Mensagem</Label>
-                <Textarea 
+                <Textarea
                   value={newAviso.mensagem}
                   onChange={(e) => setNewAviso({ ...newAviso, mensagem: e.target.value })}
                   placeholder="Digite a mensagem do aviso..."
@@ -747,7 +772,7 @@ export default function GestaoSistemaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Data Início</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={newAviso.data_inicio}
                     onChange={(e) => setNewAviso({ ...newAviso, data_inicio: e.target.value })}
@@ -756,7 +781,7 @@ export default function GestaoSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Data Fim (Opcional)</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={newAviso.data_fim}
                     onChange={(e) => setNewAviso({ ...newAviso, data_fim: e.target.value })}
@@ -788,11 +813,10 @@ export default function GestaoSistemaPage() {
                     <div key={aviso.id} className="flex items-start justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                            aviso.tipo === "urgente" ? "bg-red-500/20 text-red-500" :
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${aviso.tipo === "urgente" ? "bg-red-500/20 text-red-500" :
                             aviso.tipo === "informativo" ? "bg-blue-500/20 text-blue-500" :
-                            "bg-amber-500/20 text-amber-500"
-                          }`}>
+                              "bg-amber-500/20 text-amber-500"
+                            }`}>
                             {aviso.tipo}
                           </span>
                           <h4 className="text-white font-bold">{aviso.titulo}</h4>
@@ -823,7 +847,7 @@ export default function GestaoSistemaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Data</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={newEvento.data}
                     onChange={(e) => setNewEvento({ ...newEvento, data: e.target.value })}
@@ -852,7 +876,7 @@ export default function GestaoSistemaPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-zinc-400">Descrição</Label>
-                <Input 
+                <Input
                   value={newEvento.descricao}
                   onChange={(e) => setNewEvento({ ...newEvento, descricao: e.target.value })}
                   placeholder="Ex: Dia da Independência"
@@ -922,7 +946,7 @@ export default function GestaoSistemaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Nome do Tipo</Label>
-                  <Input 
+                  <Input
                     value={newTipoEvento.nome}
                     onChange={(e) => setNewTipoEvento({ ...newTipoEvento, nome: e.target.value })}
                     placeholder="Ex: Feriado Nacional"
@@ -950,7 +974,7 @@ export default function GestaoSistemaPage() {
               </div>
 
               <div className="flex items-center space-x-2 p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                <Checkbox 
+                <Checkbox
                   id="bloqueia_aula"
                   checked={newTipoEvento.bloqueia_aula}
                   onCheckedChange={(checked) => setNewTipoEvento({ ...newTipoEvento, bloqueia_aula: !!checked })}
@@ -967,7 +991,7 @@ export default function GestaoSistemaPage() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {PERFIS_DISPONIVEIS.map(perfil => (
                     <div key={perfil.id} className="flex items-center space-x-2">
-                      <Checkbox 
+                      <Checkbox
                         id={perfil.id}
                         checked={newTipoEvento.visibilidade_perfis.includes(perfil.id)}
                         onCheckedChange={() => togglePerfilVisibilidade(perfil.id)}
@@ -1038,7 +1062,7 @@ export default function GestaoSistemaPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Ano de Referência</Label>
-                  <Input 
+                  <Input
                     type="number"
                     value={config.ano_letivo}
                     onChange={(e) => setConfig({ ...config, ano_letivo: parseInt(e.target.value) })}
@@ -1047,7 +1071,7 @@ export default function GestaoSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Data de Início das Aulas</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={config.data_inicio_letivo || ""}
                     onChange={(e) => setConfig({ ...config, data_inicio_letivo: e.target.value })}
@@ -1056,7 +1080,7 @@ export default function GestaoSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Data de Término das Aulas</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={config.data_fim_letivo || ""}
                     onChange={(e) => setConfig({ ...config, data_fim_letivo: e.target.value })}
@@ -1068,7 +1092,7 @@ export default function GestaoSistemaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-800">
                 <div className="space-y-2">
                   <Label className="text-amber-500">Início do Recesso</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={config.recesso_inicio || ""}
                     onChange={(e) => setConfig({ ...config, recesso_inicio: e.target.value })}
@@ -1077,7 +1101,7 @@ export default function GestaoSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-amber-500">Término do Recesso</Label>
-                  <Input 
+                  <Input
                     type="date"
                     value={config.recesso_fim || ""}
                     onChange={(e) => setConfig({ ...config, recesso_fim: e.target.value })}

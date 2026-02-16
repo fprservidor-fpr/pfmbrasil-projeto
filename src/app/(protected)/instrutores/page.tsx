@@ -6,32 +6,39 @@ import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { 
-  ShieldCheck, 
-  UserPlus, 
+import {
+  ShieldCheck,
+  UserPlus,
   Loader2,
   Search,
   Edit2,
   Trash2,
   User,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  Shield,
+  Clock,
+  ExternalLink,
+  Users,
+  UserCheck
 } from "lucide-react";
-
+import { motion, AnimatePresence } from "framer-motion";
 import { createInstructorWithAccount, updateInstructor, deleteInstructor } from "./actions";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 const CARGOS = [
   "Coordenador Geral",
@@ -64,30 +71,33 @@ export default function InstructorsPage() {
     status: "Ativo",
     roles: [] as string[],
   });
-  
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5 }
+  };
+
   const fetchInstructors = async () => {
     setLoading(true);
     try {
-      // Only show test records when admin is in simulation mode
       const showTestRecords = !!simulatedRole;
-      
       let query = supabase
         .from("instructors")
         .select(`
           *,
           profile:profiles!instructors_profile_id_fkey(id, full_name, role)
         `);
-      
+
       if (!showTestRecords) {
         query = query.eq("is_test", false);
       }
-      
+
       const { data, error } = await query.order("full_name", { ascending: true });
-      
       if (error) throw error;
       setInstructors(data || []);
     } catch (error: any) {
@@ -98,11 +108,11 @@ export default function InstructorsPage() {
     }
   };
 
-    useEffect(() => {
-      if (["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor"].includes(profile?.role || "")) {
-        fetchInstructors();
-      }
-    }, [profile]);
+  useEffect(() => {
+    if (["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor"].includes(profile?.role || "")) {
+      fetchInstructors();
+    }
+  }, [profile]);
 
   const resetForm = () => {
     setFormData({
@@ -146,39 +156,22 @@ export default function InstructorsPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.full_name.trim()) {
-      toast.error("Nome é obrigatório");
-      return;
-    }
-    if (!formData.war_name.trim()) {
-      toast.error("Nome de Guerra é obrigatório");
-      return;
-    }
-    if (!formData.cpf.trim()) {
-      toast.error("CPF é obrigatório");
-      return;
-    }
-    if (createAccount && !formData.email.trim()) {
-      toast.error("E-mail é obrigatório para criar conta de acesso");
-      return;
-    }
+    if (!formData.full_name.trim()) return toast.error("Nome é obrigatório");
+    if (!formData.war_name.trim()) return toast.error("Nome de Guerra é obrigatório");
+    if (!formData.cpf.trim()) return toast.error("CPF é obrigatório");
+    if (createAccount && !formData.email.trim()) return toast.error("E-mail é obrigatório para criar conta de acesso");
 
     setSaving(true);
     try {
       let result;
-      if (editingId) {
-        result = await updateInstructor(editingId, formData);
-      } else {
-        result = await createInstructorWithAccount(formData, createAccount);
-      }
-      
+      if (editingId) result = await updateInstructor(editingId, formData);
+      else result = await createInstructorWithAccount(formData, createAccount);
+
       if (result.success) {
-        toast.success(editingId ? "Dados do instrutor atualizados!" : "Novo instrutor cadastrado!");
+        toast.success(editingId ? "Dados atualizados!" : "Cadastrado com sucesso!");
         setShowModal(false);
         fetchInstructors();
-      } else {
-        throw new Error(result.error);
-      }
+      } else throw new Error(result.error);
     } catch (error: any) {
       toast.error(error.message || "Erro ao salvar");
     } finally {
@@ -188,24 +181,22 @@ export default function InstructorsPage() {
 
   const handleDelete = (id: string, email: string) => {
     if (email === "admin@admin.com") {
-      toast.error("Não é permitido excluir o acesso exclusivo do criador do sistema.");
+      toast.error("Acesso administrativo exclusivo não pode ser removido.");
       return;
     }
     setDeletingId(id);
     setDeleteDialogOpen(true);
   };
-  
+
   const confirmDelete = async () => {
     if (!deletingId) return;
     setDeleting(true);
     try {
       const result = await deleteInstructor(deletingId);
       if (result.success) {
-        toast.success("Registro excluído!");
+        toast.success("Registro removido!");
         fetchInstructors();
-      } else {
-        throw new Error(result.error);
-      }
+      } else throw new Error(result.error);
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir");
     } finally {
@@ -213,15 +204,6 @@ export default function InstructorsPage() {
       setDeleteDialogOpen(false);
       setDeletingId(null);
     }
-  };
-
-  const toggleRole = (role: string) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: prev.roles.includes(role)
-        ? prev.roles.filter(r => r !== role)
-        : [...prev.roles, role]
-    }));
   };
 
   const formatCPF = (cpf: string) => {
@@ -234,31 +216,18 @@ export default function InstructorsPage() {
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
     if (value.length > 11) value = value.slice(0, 11);
-    
-    // Apply mask
-    if (value.length > 9) {
-      value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
-    } else if (value.length > 6) {
-      value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
-    } else if (value.length > 3) {
-      value = value.replace(/(\d{3})(\d{1,3})/, "$1.$2");
-    }
-    
+    if (value.length > 9) value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    else if (value.length > 6) value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    else if (value.length > 3) value = value.replace(/(\d{3})(\d{1,3})/, "$1.$2");
     setFormData({ ...formData, cpf: value });
   };
 
-  const filteredInstructors = instructors.filter(i => 
+  const filteredInstructors = instructors.filter(i =>
     i.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     i.cpf?.includes(searchTerm) ||
     i.rank?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     i.war_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const stats = {
-    total: instructors.length,
-    active: instructors.filter(i => i.status === "Ativo").length,
-    inactive: instructors.filter(i => i.status !== "Ativo").length,
-  };
 
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return null;
@@ -266,333 +235,332 @@ export default function InstructorsPage() {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     return age;
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-      </div>
-    );
-  }
+  if (authLoading) return (
+    <div className="flex items-center justify-center py-40">
+      <Loader2 className="w-12 h-12 animate-spin text-emerald-500" />
+    </div>
+  );
 
-  if (profile?.role !== "admin" && profile?.role !== "instructor" && profile?.role !== "instrutor") {
+  if (!["admin", "instructor", "instrutor", "coord_geral", "coord_nucleo"].includes(profile?.role || "")) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <h1 className="text-2xl font-bold text-red-500 mb-2">Acesso Negado</h1>
-        <p className="text-zinc-400 text-sm">Apenas administradores e instrutores podem acessar esta página.</p>
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <ShieldCheck className="w-16 h-16 text-red-500 opacity-50" />
+        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">Acesso Restrito</h1>
+        <p className="text-zinc-500 font-medium">Você não possui as credenciais necessárias para este setor.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-3">
-          <div className="bg-amber-400 p-2 rounded-lg">
-            <ShieldCheck className="w-8 h-8 text-zinc-900" strokeWidth={2.5} />
+    <div className="space-y-12 pb-10">
+      {/* Premium Header */}
+      <motion.div {...fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">Gestão Administrativa</span>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Gestão de Instrutores</h1>
-            <p className="text-zinc-500 text-sm">Gerencie a equipe de instrutores do programa</p>
-          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-4">
+            QUADRO DE <span className="text-emerald-500">INSTRUTORES</span>
+          </h1>
+          <p className="text-zinc-500 font-medium max-w-xl">
+            Controle operacional da equipe de instrutores, coordenadores e auxiliares do programa.
+          </p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-11 px-6">
-          <UserPlus className="w-5 h-5 mr-2" />
-          Novo Instrutor
+
+        <Button
+          onClick={() => handleOpenModal()}
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-black h-16 px-10 rounded-[2rem] shadow-xl shadow-emerald-900/20 uppercase tracking-widest text-xs border-b-4 border-emerald-800 active:border-b-0 transition-all"
+        >
+          <UserPlus className="w-5 h-5 mr-3" />
+          Novo Registro
         </Button>
+      </motion.div>
+
+      {/* Stats Quick View */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: "Total Efetivo", value: instructors.length, icon: Users, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+          { label: "Instrutores Ativos", value: instructors.filter(i => i.status === "Ativo").length, icon: Shield, color: "text-blue-400", bg: "bg-blue-400/10" },
+          { label: "Contas Vinculadas", value: instructors.filter(i => i.profile_id).length, icon: UserCheck, color: "text-amber-400", bg: "bg-amber-400/10" },
+          { label: "Média de Idade", value: Math.round(instructors.reduce((acc, i) => acc + (calculateAge(i.birth_date) || 0), 0) / (instructors.length || 1)), icon: Clock, color: "text-violet-400", bg: "bg-violet-400/10" },
+        ].map((stat, idx) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 + idx * 0.05 }}
+            className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 hover:border-white/10 transition-all shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner", stat.bg)}>
+                <stat.icon className={cn("w-6 h-6", stat.color)} />
+              </div>
+            </div>
+            <p className="text-3xl font-black text-white tracking-tighter mb-1">{stat.value}</p>
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-tight">{stat.label}</p>
+          </motion.div>
+        ))}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-        <Input 
-          placeholder="Buscar por nome, CPF ou cargo..." 
-          className="pl-12 bg-zinc-900/50 border-zinc-800 text-white h-12 rounded-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <div className="space-y-6">
+        <div className="relative max-w-2xl mx-auto">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+          <Input
+            placeholder="Pesquisar por nome, CPF ou cargo..."
+            className="pl-14 bg-zinc-900/40 backdrop-blur-xl border-white/5 text-white h-16 rounded-[2rem] focus:ring-emerald-500/20 text-lg font-medium"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
-        <Table>
-            <TableHeader className="bg-zinc-800/20 border-b border-zinc-800/50">
-              <TableRow className="border-none hover:bg-transparent">
-                <TableHead className="text-zinc-400 font-bold py-4 px-6 text-[11px] uppercase tracking-wider">INSTRUTOR / NOME</TableHead>
-                <TableHead className="text-zinc-400 font-bold py-4 text-[11px] uppercase tracking-wider">CPF</TableHead>
-                <TableHead className="text-zinc-400 font-bold py-4 text-[11px] uppercase tracking-wider">IDADE / NASC.</TableHead>
-                <TableHead className="text-zinc-400 font-bold py-4 text-[11px] uppercase tracking-wider">CARGOS NA FUNDAÇÃO</TableHead>
-                <TableHead className="text-zinc-400 font-bold py-4 text-[11px] uppercase tracking-wider">STATUS</TableHead>
-                <TableHead className="text-zinc-400 font-bold py-4 text-right px-6 text-[11px] uppercase tracking-wider">AÇÕES</TableHead>
-              </TableRow>
-            </TableHeader>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[3rem] overflow-hidden shadow-2xl"
+        >
+          <div className="overflow-x-auto overflow-y-hidden">
+            <Table>
+              <TableHeader className="bg-white/5 border-b border-white/5">
+                <TableRow className="border-none hover:bg-transparent">
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 px-10">IDENTIFICAÇÃO / NOME</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">DOCUMENTAÇÃO</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">POSTO / CARGOS</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">STATUS</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 text-right px-10">AÇÕES</TableHead>
+                </TableRow>
+              </TableHeader>
 
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-20">
-                  <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto" />
-                </TableCell>
-              </TableRow>
-            ) : filteredInstructors.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-20 text-zinc-500">
-                  Nenhum instrutor cadastrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredInstructors.map((inst) => (
-                  <TableRow key={inst.id} className="border-zinc-800/50 hover:bg-zinc-800/30 transition-all duration-200 group">
-                    <TableCell className="py-4 px-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center border border-emerald-500/20 group-hover:border-emerald-500/40 transition-colors">
-                          <User className="w-6 h-6 text-emerald-500" />
-                        </div>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-32">
+                      <Loader2 className="w-12 h-12 animate-spin text-emerald-500 mx-auto" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredInstructors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-32 text-zinc-500 font-black uppercase tracking-widest text-sm">
+                      Nenhum registro localizado no sistema.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInstructors.map((inst, idx) => (
+                    <TableRow key={inst.id} className="border-b border-white/5 hover:bg-white/5 transition-all duration-300 group">
+                      <TableCell className="py-8 px-10">
+                        <div className="flex items-center gap-6">
+                          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                            <User className="w-8 h-8" />
+                          </div>
                           <div className="flex flex-col">
-                            <span className="text-white font-bold uppercase tracking-tight text-sm">{inst.full_name}</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] text-emerald-500 uppercase font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">{inst.war_name || "---"}</span>
-                              <span className="text-[10px] text-zinc-500 uppercase font-medium">| {inst.rank || "Instrutor"}</span>
+                            <span className="text-white font-black uppercase italic tracking-tighter text-lg">{inst.full_name}</span>
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-[10px] text-emerald-500 uppercase font-black px-2 py-1 bg-emerald-500/10 rounded-lg">{inst.war_name || "N/A"}</span>
                               {inst.profile_id && (
-                                <Badge variant="outline" className="h-4 px-1.5 text-[8px] border-emerald-500/30 text-emerald-500 uppercase font-bold bg-emerald-500/5">Conta Ativa</Badge>
+                                <Badge className="h-5 px-2 text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase font-black tracking-widest">Acesso Ativo</Badge>
                               )}
                             </div>
                           </div>
-
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-zinc-300 font-mono text-sm">{formatCPF(inst.cpf)}</TableCell>
-                    <TableCell className="text-zinc-300 font-medium">
-                      {inst.birth_date ? (
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-8">
                         <div className="flex flex-col">
-                          <span>{calculateAge(inst.birth_date)} anos</span>
-                          <span className="text-[10px] text-zinc-500 font-normal">
-                            {new Date(inst.birth_date).toLocaleDateString('pt-BR')}
+                          <span className="text-zinc-300 font-mono text-sm tracking-widest">{formatCPF(inst.cpf)}</span>
+                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Nasc: {inst.birth_date ? new Date(inst.birth_date).toLocaleDateString('pt-BR') : "---"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-8">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-zinc-400 text-xs font-black uppercase tracking-tight">{inst.rank || "Monitor"}</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {inst.roles?.map((role: string, i: number) => (
+                              <span key={i} className="text-[9px] bg-white/5 text-zinc-500 px-2 py-0.5 rounded-md uppercase font-bold">{role}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-8">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-2 h-2 rounded-full", inst.status === "Ativo" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]")} />
+                          <span className={cn("font-black text-[10px] uppercase tracking-widest", inst.status === "Ativo" ? "text-emerald-500" : "text-red-500")}>
+                            {inst.status || "Ativo"}
                           </span>
                         </div>
-                      ) : (
-                        <span className="text-zinc-600 italic">Não informado</span>
-                      )}
-                    </TableCell>
-
-                  <TableCell className="py-4">
-                    <div className="flex flex-wrap gap-2">
-                      {inst.roles && inst.roles.length > 0 ? (
-                        inst.roles.map((role: string, idx: number) => (
-                          <Badge key={idx} className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-none font-medium text-[10px]">
-                            {role}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge className="bg-zinc-800 text-zinc-500 border-none font-medium text-[10px]">
-                          Sem cargo definido
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <span className={`font-bold text-xs uppercase tracking-wider ${inst.status === "Ativo" ? "text-emerald-500" : "text-red-500"}`}>
-                      {inst.status || "Ativo"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right py-4 px-6">
-                    <div className="flex justify-end gap-4">
-                      <button onClick={() => handleOpenModal(inst)} className="text-zinc-500 hover:text-white transition-colors" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                        <button onClick={() => handleDelete(inst.id, inst.email)} className="text-red-500 hover:text-red-400 transition-colors" title="Excluir">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                      </TableCell>
+                      <TableCell className="text-right py-8 px-10">
+                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(inst)} className="w-12 h-12 bg-white/5 hover:bg-emerald-500 hover:text-black rounded-2xl transition-all">
+                            <Edit2 className="w-5 h-5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(inst.id, inst.email)} className="w-12 h-12 bg-white/5 hover:bg-red-500 hover:text-white rounded-2xl transition-all">
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </motion.div>
       </div>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="bg-[#1a1f2e] border-zinc-800 text-white max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">{editingId ? "Editar Instrutor" : "Novo Instrutor"}</DialogTitle>
-          </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-zinc-400">Nome Completo *</Label>
-                  <Input 
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="bg-zinc-900 border-zinc-700 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-zinc-400">Nome de Guerra *</Label>
-                  <Input 
-                    value={formData.war_name}
-                    onChange={(e) => setFormData({ ...formData, war_name: e.target.value })}
-                    placeholder="Ex: Sgt Silva"
-                    className="bg-zinc-900 border-zinc-700 text-white"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">E-mail (para acesso)</Label>
-                <Input 
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="instrutor@exemplo.com"
-                  className="bg-zinc-900 border-zinc-700 text-white"
+        <DialogContent className="bg-zinc-950/95 backdrop-blur-2xl border-white/5 text-white max-w-xl p-0 overflow-hidden rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.8)]">
+          <div className="bg-gradient-to-br from-emerald-600/20 to-transparent p-12 border-b border-white/5 relative overflow-hidden">
+            <div className="relative z-10">
+              <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter mb-2">{editingId ? "Atualizar Perfil" : "Novo Cadastro"}</DialogTitle>
+              <DialogDescription className="text-zinc-500 font-medium tracking-tight">Insira os dados operacionais do membro do quadro efetivo.</DialogDescription>
+            </div>
+            <div className="absolute top-0 right-0 p-12 opacity-10">
+              <UserPlus className="w-24 h-24 text-emerald-500" />
+            </div>
+          </div>
+
+          <div className="p-12 space-y-8 max-h-[60vh] overflow-y-auto no-scrollbar">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Nome Completo</Label>
+                <Input
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-bold"
                 />
               </div>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Nome de Guerra</Label>
+                <Input
+                  value={formData.war_name}
+                  onChange={(e) => setFormData({ ...formData, war_name: e.target.value })}
+                  className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-bold"
+                />
+              </div>
+            </div>
 
-              {!editingId && (
-                <div className="flex items-center justify-between p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                  <div className="space-y-0.5">
-                    <Label className="text-emerald-500 font-bold">Criar Conta de Acesso</Label>
-                    <p className="text-[10px] text-emerald-500/70">Login: CPF ou E-mail | Senha: 5 últimos dígitos do CPF</p>
-                  </div>
-                  <Switch 
-                    checked={createAccount}
-                    onCheckedChange={setCreateAccount}
-                  />
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">E-mail Operacional</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="exemplo@fundaçãopedromorais.com"
+                className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-bold"
+              />
+            </div>
+
+            {!editingId && (
+              <div className="flex items-center justify-between p-8 bg-emerald-500/5 rounded-[2rem] border border-emerald-500/20 shadow-inner">
+                <div className="space-y-1">
+                  <Label className="text-emerald-500 font-black uppercase text-xs tracking-widest">Habilitar Acesso</Label>
+                  <p className="text-[9px] text-emerald-500/50 font-black uppercase tracking-widest">Login: CPF | Senha: 5 Últimos Dígitos</p>
                 </div>
-              )}
+                <Switch
+                  checked={createAccount}
+                  onCheckedChange={setCreateAccount}
+                  className="data-[state=checked]:bg-emerald-500"
+                />
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-zinc-400">CPF *</Label>
-                  <Input 
-                    value={formData.cpf}
-                    onChange={handleCPFChange}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                    className="bg-zinc-900 border-zinc-700 text-white font-mono"
-                  />
-                </div>
-
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Data de Nascimento *</Label>
-                <Input 
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">CPF</Label>
+                <Input
+                  value={formData.cpf}
+                  onChange={handleCPFChange}
+                  maxLength={14}
+                  className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-mono"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Nascimento</Label>
+                <Input
                   type="date"
                   value={formData.birth_date}
                   onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                  className="bg-zinc-900 border-zinc-700 text-white [color-scheme:dark]"
+                  className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white [color-scheme:dark]"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Formação Acadêmica</Label>
-                <Input 
-                  value={formData.academic_formation}
-                  onChange={(e) => setFormData({ ...formData, academic_formation: e.target.value })}
-                  placeholder="Ex: Licenciatura em Educação Física"
-                  className="bg-zinc-900 border-zinc-700 text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Nº Título de Eleitor</Label>
-                <Input 
-                  value={formData.voter_id}
-                  onChange={(e) => setFormData({ ...formData, voter_id: e.target.value })}
-                  className="bg-zinc-900 border-zinc-700 text-white"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Posto/Graduação</Label>
-                <Input 
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Posto / Rank</Label>
+                <Input
                   value={formData.rank}
                   onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                  placeholder="Ex: Sargento"
-                  className="bg-zinc-900 border-zinc-700 text-white"
+                  className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-bold"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Especialidade</Label>
-                <Input 
-                  value={formData.specialty}
-                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                  placeholder="Ex: Educação Física"
-                  className="bg-zinc-900 border-zinc-700 text-white"
-                />
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Status Operativo</Label>
+                <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                  <SelectTrigger className="bg-zinc-900/50 border-white/5 h-14 rounded-2xl text-white font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl">
+                    <SelectItem value="Ativo" className="rounded-xl focus:bg-emerald-600">Ativo</SelectItem>
+                    <SelectItem value="Inativo" className="rounded-xl focus:bg-red-600">Inativo</SelectItem>
+                    <SelectItem value="Afastado" className="rounded-xl focus:bg-amber-600">Afastado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Status *</Label>
-              <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                  <SelectItem value="Afastado">Afastado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Cargos na Fundação *</Label>
-              <div className="grid grid-cols-2 gap-3 pt-2">
+
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-2">Cargos Designados</Label>
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 {CARGOS.map((cargo) => (
-                  <div key={cargo} className="flex items-center space-x-2">
-                    <Checkbox 
+                  <div key={cargo} className="flex items-center space-x-3 p-4 bg-zinc-900/50 rounded-2xl border border-white/5 group hover:border-emerald-500/30 transition-all">
+                    <Checkbox
                       id={cargo}
                       checked={formData.roles.includes(cargo)}
-                      onCheckedChange={() => toggleRole(cargo)}
-                      className="border-zinc-700 data-[state=checked]:bg-emerald-500"
+                      onCheckedChange={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          roles: prev.roles.includes(cargo) ? prev.roles.filter(r => r !== cargo) : [...prev.roles, cargo]
+                        }));
+                      }}
+                      className="border-white/10 data-[state=checked]:bg-emerald-500 rounded-md"
                     />
-                    <Label htmlFor={cargo} className="text-zinc-300 cursor-pointer text-sm">{cargo}</Label>
+                    <Label htmlFor={cargo} className="text-zinc-400 font-bold text-xs uppercase cursor-pointer group-hover:text-white transition-colors">{cargo}</Label>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex gap-4 pt-4">
-              <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1 border-zinc-700 text-zinc-400">
-                Cancelar
-              </Button>
-              <Button onClick={handleSave} disabled={saving} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : "Salvar"}
-              </Button>
-            </div>
+          </div>
+
+          <div className="p-12 bg-white/5 border-t border-white/5 flex gap-6">
+            <Button variant="ghost" onClick={() => setShowModal(false)} className="flex-1 text-zinc-500 hover:text-white font-black uppercase tracking-widest text-xs h-16 rounded-[2rem]">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black h-16 rounded-[2rem] shadow-xl shadow-emerald-900/20 uppercase tracking-[0.2em] text-xs">
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Salvar Registro"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-500" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold">Confirmar Exclusão</DialogTitle>
-                <DialogDescription className="text-zinc-400 text-sm">Esta ação não pode ser desfeita.</DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <DialogFooter className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} className="flex-1 border-zinc-700 text-zinc-400">
-              Cancelar
+        <DialogContent className="bg-zinc-950 border-white/5 text-white max-w-sm rounded-[3rem] p-12 text-center shadow-[0_50px_100px_rgba(0,0,0,0.8)]">
+          <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
+            <AlertTriangle className="w-10 h-10 text-red-500" />
+          </div>
+          <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic mb-3">Remover Acesso?</DialogTitle>
+          <DialogDescription className="text-zinc-500 mb-10 font-medium">Esta ação é irreversível e removerá todos os privilégios operacionais deste membro.</DialogDescription>
+          <div className="flex flex-col gap-4">
+            <Button onClick={confirmDelete} disabled={deleting} className="w-full bg-red-600 hover:bg-red-500 text-white font-black h-16 rounded-[2rem] shadow-xl shadow-red-900/20 uppercase tracking-widest text-xs border-b-4 border-red-800 active:border-b-0">
+              {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirmar Exclusão"}
             </Button>
-            <Button onClick={confirmDelete} disabled={deleting} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold">
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Excluir"}
+            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)} className="w-full text-zinc-500 hover:text-white font-black h-16 uppercase tracking-widest text-[10px]">
+              Voltar
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
