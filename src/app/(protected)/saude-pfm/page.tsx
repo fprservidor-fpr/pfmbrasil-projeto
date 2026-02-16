@@ -333,73 +333,91 @@ export default function SaudePFMPage() {
       const doc = new jsPDF();
 
       // Header
-      doc.setFontSize(22);
-      doc.setTextColor(244, 63, 94); // rose-500
+      doc.setFillColor(24, 24, 27); // zinc-900
+      doc.rect(0, 0, 210, 40, "F");
+
+      doc.setFontSize(24);
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text("PFM BRASIL", 105, 20, { align: "center" });
+      doc.text("PFM BRASIL", 20, 25);
 
-      doc.setFontSize(14);
-      doc.setTextColor(150);
-      doc.text("RELATÓRIO DE REGISTROS DE ENFERMAGEM", 105, 28, { align: "center" });
+      doc.setFontSize(10);
+      doc.setTextColor(244, 63, 94); // rose-500
+      doc.text("GESTOR DE SAÚDE E ENFERMAGEM", 20, 32);
 
-      doc.setDrawColor(244, 63, 94);
-      doc.setLineWidth(0.5);
-      doc.line(20, 35, 190, 35);
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 190, 32, { align: "right" });
 
-      let y = 50;
+      let y = 55;
 
-      data.forEach((record: any) => {
-        const studentName = record.students?.nome_guerra || record.students?.nome_completo?.split(' ')[0] || "ESTUDANTE";
-        const dateStr = format(new Date(record.created_at), "dd/MM/yyyy");
-        const content = record.instructor_notes?.replace("[ENFERMAGEM] - ", "") || "Sem observações detalhadas.";
-
-        // Split text and calculate height
-        const textLines = doc.splitTextToSize(content, 170);
-        const blockHeight = (textLines.length * 6) + 15;
-
-        if (y + blockHeight > 280) {
-          doc.addPage();
-          y = 30;
-        }
-
-        // Student Identifier with background
-        doc.setFillColor(244, 63, 94, 0.05);
-        doc.roundedRect(20, y - 5, 170, 10, 1, 1, "F");
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(244, 63, 94);
-        doc.text(studentName.toUpperCase(), 25, y + 1.5);
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100);
-        doc.text(`|  Registrado em: ${dateStr}`, 70, y + 1.5);
-
-        y += 12;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(40);
-        doc.setFontSize(11);
-        doc.text(textLines, 25, y);
-
-        y += (textLines.length * 6) + 12;
-
-        doc.setDrawColor(240);
-        doc.setLineWidth(0.1);
-        doc.line(20, y - 8, 190, y - 8);
+      // Group by student for better summary
+      const groupedData: { [key: string]: any[] } = {};
+      data.forEach(r => {
+        const key = r.students?.nome_completo || "Sem Nome";
+        if (!groupedData[key]) groupedData[key] = [];
+        groupedData[key].push(r);
       });
 
-      // Footer with page numbers
+      Object.entries(groupedData).forEach(([studentName, records]) => {
+        const guerreName = records[0].students?.nome_guerra || studentName.split(' ')[0];
+        const matricula = records[0].students?.matricula_pfm || "N/A";
+
+        // Student Title Block
+        if (y + 40 > 280) { doc.addPage(); y = 30; }
+
+        doc.setFillColor(244, 63, 94);
+        doc.roundedRect(20, y - 5, 25, 6, 1, 1, "F");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.text(matricula, 32.5, y - 0.5, { align: "center" });
+
+        doc.setFontSize(14);
+        doc.setTextColor(24, 24, 27);
+        doc.text(guerreName.toUpperCase(), 50, y);
+
+        y += 10;
+
+        records.forEach((record) => {
+          const dateStr = format(new Date(record.created_at), "dd/MM/yyyy");
+          const content = record.instructor_notes?.replace("[ENFERMAGEM] - ", "") || "Atualização de ficha médica.";
+
+          const textLines = doc.splitTextToSize(content, 160);
+          const blockHeight = (textLines.length * 5) + 10;
+
+          if (y + blockHeight > 280) { doc.addPage(); y = 30; }
+
+          doc.setDrawColor(228, 228, 231); // zinc-200
+          doc.setLineWidth(0.1);
+          doc.line(20, y, 190, y);
+
+          y += 6;
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(113, 113, 122); // zinc-500
+          doc.text(dateStr, 20, y);
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(39, 39, 42); // zinc-800
+          doc.text(textLines, 45, y);
+
+          y += (textLines.length * 5) + 4;
+        });
+
+        y += 15;
+      });
+
+      // Footer
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150);
         doc.text(`Página ${i} de ${pageCount}`, 105, 290, { align: "center" });
-        doc.text("PFM BRASIL - Programa de Formação de Monitores", 20, 290);
       }
 
-      doc.save(`Relatorio_Enfermagem_PFM_${format(new Date(), "ddMMyyyy")}.pdf`);
+      doc.save(`Relatorio_Enfermagem_Geral_${format(new Date(), "ddMMyyyy")}.pdf`);
       toast.success("Relatório PDF gerado com sucesso!");
     } catch (error: any) {
       console.error(error);
@@ -501,6 +519,16 @@ export default function SaudePFMPage() {
               Ranking TAF
             </Button>
           </Link>
+          {isInstructor && (
+            <Button
+              onClick={handlePrintNursingReport}
+              disabled={printingReport}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-widest px-6 rounded-xl shadow-lg shadow-rose-600/20 flex items-center gap-2 h-11 border-none"
+            >
+              {printingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              Relatório Enfermagem
+            </Button>
+          )}
           {isInstructor && (
             <Link href="/saude-pfm/dashsaudepfm">
               <Button className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-white font-black text-xs uppercase tracking-widest px-6 rounded-xl border flex items-center gap-2 h-11">
@@ -663,23 +691,11 @@ export default function SaudePFMPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="bg-zinc-900/50 border-zinc-800 rounded-3xl overflow-hidden">
-                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800 flex flex-row items-center justify-between">
+                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800">
                     <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                       <ClipboardList className="w-4 h-4 text-rose-500" />
                       Seção de Enfermagem
                     </CardTitle>
-                    {isInstructor && (
-                      <Button
-                        onClick={handlePrintNursingReport}
-                        disabled={printingReport}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 border-rose-500/20 text-rose-500 hover:bg-rose-500/10 font-black text-[10px] uppercase tracking-widest gap-2 rounded-xl transition-all"
-                      >
-                        {printingReport ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                        IMPRIMIR RELATÓRIO
-                      </Button>
-                    )}
                   </CardHeader>
                   <CardContent className="p-6">
                     <div className="space-y-4">
@@ -719,6 +735,17 @@ export default function SaudePFMPage() {
                             <div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", evalForm.has_alert ? "bg-rose-500/20" : "bg-zinc-800")}><AlertTriangle className={cn("w-5 h-5", evalForm.has_alert ? "text-rose-500" : "text-zinc-500")} /></div><div><p className="text-xs font-black text-white uppercase tracking-tight">Ativar Sinal de Alerta</p><p className="text-[9px] text-zinc-500 font-bold uppercase">Aparecerá no controle de frequência</p></div></div>
                             <Button onClick={() => setEvalForm({ ...evalForm, has_alert: !evalForm.has_alert })} variant={evalForm.has_alert ? "default" : "outline"} className={cn("rounded-xl h-9 px-4 font-black text-[10px] uppercase tracking-widest", evalForm.has_alert ? "bg-rose-600 hover:bg-rose-500 text-white border-none shadow-lg shadow-rose-600/20" : "border-zinc-800 text-zinc-500")}>{evalForm.has_alert ? "ATIVADO" : "DESATIVADO"}</Button>
                           </div>
+                          {evalForm.has_alert && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-1.5 overflow-hidden">
+                              <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Descrição do Alerta</label>
+                              <Input
+                                value={evalForm.alert_description}
+                                onChange={(e) => setEvalForm({ ...evalForm, alert_description: e.target.value })}
+                                placeholder="Descreva o motivo do alerta (Ex: TEA e TDAH)..."
+                                className="bg-zinc-950 border-rose-500/30 text-white h-11 rounded-2xl focus:ring-rose-500/20"
+                              />
+                            </motion.div>
+                          )}
                           {isInstructor && <Button onClick={handleSaveNursing} disabled={savingObs} size="sm" className="w-full bg-zinc-100 hover:bg-white text-black font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all shadow-xl">{savingObs ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" />REGISTRAR (ENFERMAGEM)</>}</Button>}
                         </div>
                       </div>
@@ -764,14 +791,7 @@ export default function SaudePFMPage() {
                           <div className="space-y-1.5"><label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Dificuldades / Problemas Identificados</label><Textarea value={evalForm.difficulties} onChange={(e) => setEvalForm({ ...evalForm, difficulties: e.target.value })} placeholder="Descreva as dificuldades físicas ou problemas de saúde observados..." className="bg-zinc-950 border-zinc-800 text-white min-h-[80px] rounded-2xl resize-none" /></div>
                           <div className="space-y-1.5"><label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Projetos de Melhoria (Ex: Fisioterapia)</label><Textarea value={evalForm.improvement_projects} onChange={(e) => setEvalForm({ ...evalForm, improvement_projects: e.target.value })} placeholder="Plano de ação ou recomendações..." className="bg-zinc-950 border-zinc-800 text-white min-h-[80px] rounded-2xl resize-none" /></div>
                         </div>
-                        <div className="pt-4 border-t border-zinc-800 space-y-4">
-                          <div className="flex items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
-                            <div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", evalForm.has_alert ? "bg-rose-500/20" : "bg-zinc-800")}><AlertTriangle className={cn("w-5 h-5", evalForm.has_alert ? "text-rose-500" : "text-zinc-500")} /></div><div><p className="text-xs font-black text-white uppercase tracking-tight">Ativar Sinal de Alerta</p><p className="text-[9px] text-zinc-500 font-bold uppercase">Aparecerá no controle de frequência</p></div></div>
-                            <Button onClick={() => setEvalForm({ ...evalForm, has_alert: !evalForm.has_alert })} variant={evalForm.has_alert ? "default" : "outline"} className={cn("rounded-xl h-9 px-4 font-black text-[10px] uppercase tracking-widest", evalForm.has_alert ? "bg-rose-600 hover:bg-rose-500 text-white border-none shadow-lg shadow-rose-600/20" : "border-zinc-800 text-zinc-500")}>{evalForm.has_alert ? "ATIVADO" : "DESATIVADO"}</Button>
-                          </div>
-                          {evalForm.has_alert && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-1.5"><label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Descrição do Alerta</label><Input value={evalForm.alert_description} onChange={(e) => setEvalForm({ ...evalForm, alert_description: e.target.value })} placeholder="Por que este aluno deve ser monitorado?" className="bg-zinc-950 border-rose-500/30 text-white h-11 rounded-2xl focus:ring-rose-500/20" /></motion.div>}
-                        </div>
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-3 pt-4">
                           {editingId && <Button onClick={handleCancelEdit} variant="outline" className="w-full border-zinc-800 text-zinc-500 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl"><X className="w-4 h-4 mr-2" />CANCELAR EDIÇÃO</Button>}
                           <Button onClick={handleSaveEvaluation} disabled={saving} className={cn("w-full h-12 text-white font-black rounded-2xl shadow-xl transition-all", editingId ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/20" : "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20")}>{saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-2" />{editingId ? "ATUALIZAR REGISTRO" : "REGISTRAR AVALIAÇÃO (ED. FÍSICA)"}</>}</Button>
                         </div>
@@ -913,7 +933,7 @@ export default function SaudePFMPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }
 
