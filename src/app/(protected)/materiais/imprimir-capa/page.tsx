@@ -30,6 +30,7 @@ function PrintCoverContent() {
   const [downloading, setDownloading] = useState(false);
   const [student, setStudent] = useState<Student | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [logoBase64, setLogoBase64] = useState<string>("");
 
   useEffect(() => {
     const checkMobile = () => {
@@ -37,6 +38,22 @@ function PrintCoverContent() {
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
+
+    // Pré-carrega o brasão em base64 para evitar erros de CORS no Canvas Mobile
+    const preloadLogo = async () => {
+      try {
+        const logoUrl = "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/457299fe-3a14-44fe-b553-88091598e7a6/BRASAO-BFM-1769571151682.png?width=800&height=800&resize=contain";
+        const response = await fetch(logoUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => setLogoBase64(reader.result as string);
+        reader.readAsDataURL(blob);
+      } catch (e) {
+        console.error("Falha ao pré-carregar logo:", e);
+      }
+    };
+    preloadLogo();
+
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -80,14 +97,14 @@ function PrintCoverContent() {
 
     try {
       setDownloading(true);
-      const loadingToast = toast.loading("Gerando capa em alta definição...");
+      const loadingToast = toast.loading("Preparando exportação estável...");
 
       // Forçar scroll para o topo para evitar capturas parciais
       window.scrollTo(0, 0);
       await new Promise(resolve => setTimeout(resolve, 800));
 
       const canvas = await html2canvas(componentRef.current, {
-        scale: 1.5, // Equilíbrio entre qualidade e memória
+        scale: 1, // Escala 1 para garantir sucesso em qualquer celular (memória limitada)
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
@@ -104,17 +121,15 @@ function PrintCoverContent() {
         format: "a4"
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      // A4 em escala 1 (approx 794x1123px)
+      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, 'FAST');
       pdf.save(`Capa_${student?.nome_guerra || "PFM"}.pdf`);
 
       toast.dismiss(loadingToast);
       toast.success("Download iniciado!");
     } catch (error) {
       console.error("Erro PDF:", error);
-      toast.error("Erro ao gerar PDF. Tente novamente.");
+      toast.error("Erro ao gerar PDF no celular. Tente novamente ou use computador.");
     } finally {
       setDownloading(false);
     }
@@ -184,7 +199,7 @@ function PrintCoverContent() {
       {/* Printable Area Wrapper */}
       <div className="print:m-0 print:p-0 flex justify-start md:justify-center bg-transparent overflow-x-auto overflow-y-hidden pb-8 scrollbar-hide touch-pan-x">
         <div className="inline-block min-w-max md:min-w-0 p-4 md:p-0">
-          <PrintableCover ref={componentRef} student={student} />
+          <PrintableCover ref={componentRef} student={student} logoUrl={logoBase64} />
         </div>
       </div>
 
