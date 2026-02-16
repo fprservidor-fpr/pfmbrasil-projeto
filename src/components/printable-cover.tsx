@@ -71,12 +71,12 @@ export const PrintableCover = React.forwardRef<HTMLDivElement, PrintableCoverPro
         `}</style>
 
         {/* Bordas Finas conforme o design */}
-        <div className="absolute inset-[10mm] border-[0.5px] border-zinc-300 pointer-events-none" />
-        <div className="absolute inset-[11mm] border-[0.5px] border-zinc-200 pointer-events-none" />
+        <div className="absolute inset-[10mm] border-[0.5px] pointer-events-none" style={{ borderColor: '#d4d4d8' }} />
+        <div className="absolute inset-[11mm] border-[0.5px] pointer-events-none" style={{ borderColor: '#e4e4e7' }} />
 
-        <div className="z-10 flex flex-col items-center mt-[15mm] w-full">
+        <div className="z-10 flex flex-col items-center mt-[15mm] w-full" style={{ color: '#18181b' }}>
           <div className="mb-20 text-center">
-            <h2 className="text-[22px] font-black tracking-[0.4em] uppercase text-zinc-800">
+            <h2 className="text-[22px] font-black tracking-[0.4em] uppercase" style={{ color: '#27272a' }}>
               IDENTIFICAÇÃO DO(A) ALUNO(A)
             </h2>
           </div>
@@ -92,17 +92,17 @@ export const PrintableCover = React.forwardRef<HTMLDivElement, PrintableCoverPro
         </div>
 
         <div className="z-10 flex flex-col items-center w-full px-[15mm]">
-          <div className="w-full border-t border-zinc-100 mb-12" />
+          <div className="w-full border-t mb-12" style={{ borderColor: '#f4f4f5' }} />
 
           <div className="text-center mb-10">
-            <div className="text-[48px] font-black uppercase tracking-tight text-black flex items-center justify-center gap-6">
+            <div className="text-[48px] font-black uppercase tracking-tight flex items-center justify-center gap-6" style={{ color: '#000000' }}>
               <span>{student.matricula_pfm}</span>
-              <span className="text-zinc-200 text-[40px]">•</span>
+              <span className="text-[40px]" style={{ color: '#e4e4e7' }}>•</span>
               <span>{student.nome_guerra}</span>
               {student.blood_type &&
                 !["NÃO INFORMADO", "NAO INFORMADO", "---", ""].includes(student.blood_type.toUpperCase().trim()) && (
                   <>
-                    <span className="text-zinc-200 text-[40px]">•</span>
+                    <span className="text-[40px]" style={{ color: '#e4e4e7' }}>•</span>
                     <span>{student.blood_type}</span>
                   </>
                 )}
@@ -110,18 +110,18 @@ export const PrintableCover = React.forwardRef<HTMLDivElement, PrintableCoverPro
           </div>
 
           <div className="text-center mb-10">
-            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 block mb-4">
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] block mb-4" style={{ color: '#a1a1aa' }}>
               UNIDADE / PELOTÃO
             </span>
-            <div className="text-[34px] font-black uppercase tracking-tight text-zinc-800">
+            <div className="text-[34px] font-black uppercase tracking-tight" style={{ color: '#27272a' }}>
               TURMA: {student.turma || "---"}
             </div>
           </div>
 
-          <div className="w-full border-t border-zinc-100 mt-2 mb-12" />
+          <div className="w-full border-t mt-2 mb-12" style={{ borderColor: '#f4f4f5' }} />
 
           <div className="px-10 max-w-[550px]">
-            <p className="text-[18px] font-medium italic text-zinc-500 leading-relaxed text-center">
+            <p className="text-[18px] font-medium italic leading-relaxed text-center" style={{ color: '#71717a' }}>
               "Treinar a criança no caminho em que deve andar, e até quando envelhecer não se desviará dele."
             </p>
           </div>
@@ -129,14 +129,14 @@ export const PrintableCover = React.forwardRef<HTMLDivElement, PrintableCoverPro
 
         <div className="z-10 flex flex-col items-center gap-6 mb-[15mm]">
           <div className="text-center">
-            <span className="text-[14px] font-black uppercase tracking-[0.8em] text-zinc-600 block mb-3">
+            <span className="text-[14px] font-black uppercase tracking-[0.8em] block mb-3" style={{ color: '#52525b' }}>
               G E S T Ã O &nbsp; {format(new Date(), "yyyy")}
             </span>
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: '#a1a1aa' }}>
                 PFM SYSTEM • DOCUMENTO DE IDENTIFICAÇÃO
               </span>
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-400/60">
+              <span className="text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: '#d4d4d8' }}>
                 DESENVOLVIDO POR AVERO AGENCY
               </span>
             </div>
