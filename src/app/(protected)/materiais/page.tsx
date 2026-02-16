@@ -223,7 +223,7 @@ export default function MateriaisPage() {
           <div className="flex flex-wrap gap-4">
             <Button
               onClick={() => router.push('/materiais/gerenciar')}
-              className="bg-zinc-900 border border-white/10 hover:border-yellow-400/50 text-white font-black px-8 h-14 rounded-2xl shadow-xl uppercase tracking-widest text-xs group"
+              className="bg-zinc-900 border border-white/10 hover:border-yellow-400/50 text-white font-black px-8 h-14 rounded-2xl shadow-xl uppercase tracking-widest text-xs group shrink-0"
             >
               <Pencil className="w-5 h-5 mr-3 group-hover:text-yellow-400 transition-colors" />
               Painel de Gestão
@@ -233,23 +233,25 @@ export default function MateriaisPage() {
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
-        <TabsList className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 p-2 rounded-3xl h-16 flex items-center justify-start md:justify-center overflow-x-auto no-scrollbar gap-2">
-          {[
-            { id: "pfm", label: "Manual PFM", icon: ShieldCheck, color: "text-yellow-400" },
-            { id: "biblia", label: "Devocional", icon: Book, color: "text-blue-400" },
-            { id: "missoes", label: "Atividades", icon: Target, color: "text-violet-400" },
-            { id: "capa", label: "Identidade", icon: FileText, color: "text-amber-500" }
-          ].map((tab) => (
-            <TabsTrigger
-              key={tab.id}
-              value={tab.id}
-              className="rounded-2xl data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-lg font-black text-[10px] uppercase tracking-widest h-full px-6 transition-all"
-            >
-              <tab.icon className={cn("w-4 h-4 mr-2", tab.color)} />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="relative">
+          <TabsList className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 p-2 rounded-3xl h-16 flex items-center justify-start md:justify-center overflow-x-auto no-scrollbar gap-2 touch-pan-x select-none w-full overscroll-x-contain">
+            {[
+              { id: "pfm", label: "Manual PFM", icon: ShieldCheck, color: "text-yellow-400" },
+              { id: "biblia", label: "Devocional", icon: Book, color: "text-blue-400" },
+              { id: "missoes", label: "Atividades", icon: Target, color: "text-violet-400" },
+              { id: "capa", label: "Identidade", icon: FileText, color: "text-amber-500" }
+            ].map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="shrink-0 rounded-2xl data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-lg font-black text-[10px] uppercase tracking-widest h-full px-6 transition-all"
+              >
+                <tab.icon className={cn("w-4 h-4 mr-2", tab.color)} />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         <div className="relative z-10">
           <TabsContent value="pfm" className="space-y-8 outline-none">

@@ -323,18 +323,17 @@ export default function InstructorsPage() {
           animate={{ opacity: 1 }}
           className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[3rem] overflow-hidden shadow-2xl"
         >
-          <div className="overflow-x-auto overflow-y-hidden">
-            <Table>
+          <div className="overflow-x-auto no-scrollbar">
+            <Table className="min-w-[900px] lg:min-w-full">
               <TableHeader className="bg-white/5 border-b border-white/5">
                 <TableRow className="border-none hover:bg-transparent">
-                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 px-10">IDENTIFICAÇÃO / NOME</TableHead>
-                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">DOCUMENTAÇÃO</TableHead>
-                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">POSTO / CARGOS</TableHead>
-                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">STATUS</TableHead>
-                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 text-right px-10">AÇÕES</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6 px-6">MEMBRO ESTRATÉGICO</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">DOCUMENTAÇÃO</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">ESCALÃO / ROLE</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">STATUS</TableHead>
+                  <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6 text-right px-6">AÇÕES</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {loading ? (
                   <TableRow>
@@ -344,60 +343,60 @@ export default function InstructorsPage() {
                   </TableRow>
                 ) : filteredInstructors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-32 text-zinc-500 font-black uppercase tracking-widest text-sm">
-                      Nenhum registro localizado no sistema.
+                    <TableCell colSpan={5} className="text-center py-32 text-zinc-500 font-black uppercase tracking-widest">
+                      Quadro Efetivo Vazio.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredInstructors.map((inst, idx) => (
                     <TableRow key={inst.id} className="border-b border-white/5 hover:bg-white/5 transition-all duration-300 group">
-                      <TableCell className="py-8 px-10">
-                        <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                            <User className="w-8 h-8" />
+                      <TableCell className="py-6 px-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all shrink-0">
+                            <User className="w-6 h-6" />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-white font-black uppercase italic tracking-tighter text-lg">{inst.full_name}</span>
-                            <div className="flex items-center gap-3 mt-1.5">
-                              <span className="text-[10px] text-emerald-500 uppercase font-black px-2 py-1 bg-emerald-500/10 rounded-lg">{inst.war_name || "N/A"}</span>
+                          <div className="flex flex-col max-w-[200px] md:max-w-none">
+                            <span className="text-white font-black uppercase italic tracking-tighter text-sm truncate">{inst.full_name}</span>
+                            <div className="flex items-center gap-2 mt-1 truncate">
+                              <span className="text-[9px] text-emerald-500 uppercase font-black px-1.5 py-0.5 bg-emerald-500/10 rounded-md truncate">{inst.war_name || "N/A"}</span>
                               {inst.profile_id && (
-                                <Badge className="h-5 px-2 text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase font-black tracking-widest">Acesso Ativo</Badge>
+                                <Badge className="h-4 px-1.5 text-[8px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase font-black tracking-widest hidden sm:flex">Ativo</Badge>
                               )}
                             </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-8">
+                      <TableCell className="py-6">
                         <div className="flex flex-col">
-                          <span className="text-zinc-300 font-mono text-sm tracking-widest">{formatCPF(inst.cpf)}</span>
-                          <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Nasc: {inst.birth_date ? new Date(inst.birth_date).toLocaleDateString('pt-BR') : "---"}</span>
+                          <span className="text-zinc-300 font-mono text-[11px] tracking-widest">{formatCPF(inst.cpf)}</span>
+                          <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mt-0.5">Nasc: {inst.birth_date ? new Date(inst.birth_date).toLocaleDateString('pt-BR') : "---"}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-8">
-                        <div className="flex flex-col gap-2">
-                          <span className="text-zinc-400 text-xs font-black uppercase tracking-tight">{inst.rank || "Monitor"}</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {inst.roles?.map((role: string, i: number) => (
-                              <span key={i} className="text-[9px] bg-white/5 text-zinc-500 px-2 py-0.5 rounded-md uppercase font-bold">{role}</span>
+                      <TableCell className="py-6">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-zinc-400 text-[10px] font-black uppercase tracking-tight">{inst.rank || "Monitor"}</span>
+                          <div className="flex flex-wrap gap-1">
+                            {inst.roles?.slice(0, 2).map((role: string, i: number) => (
+                              <span key={i} className="text-[8px] bg-white/5 text-zinc-500 px-1.5 py-0.5 rounded-md uppercase font-bold">{role}</span>
                             ))}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-8">
+                      <TableCell className="py-6">
                         <div className="flex items-center gap-2">
-                          <div className={cn("w-2 h-2 rounded-full", inst.status === "Ativo" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]")} />
-                          <span className={cn("font-black text-[10px] uppercase tracking-widest", inst.status === "Ativo" ? "text-emerald-500" : "text-red-500")}>
+                          <div className={cn("w-1.5 h-1.5 rounded-full", inst.status === "Ativo" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]")} />
+                          <span className={cn("font-black text-[9px] uppercase tracking-widest", inst.status === "Ativo" ? "text-emerald-500" : "text-red-500")}>
                             {inst.status || "Ativo"}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right py-8 px-10">
-                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(inst)} className="w-12 h-12 bg-white/5 hover:bg-emerald-500 hover:text-black rounded-2xl transition-all">
-                            <Edit2 className="w-5 h-5" />
+                      <TableCell className="text-right py-6 px-6">
+                        <div className="flex justify-end gap-2 group-hover:opacity-100 sm:opacity-0 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(inst)} className="w-10 h-10 bg-white/5 hover:bg-emerald-500 hover:text-black rounded-xl transition-all">
+                            <Edit2 className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(inst.id, inst.email)} className="w-12 h-12 bg-white/5 hover:bg-red-500 hover:text-white rounded-2xl transition-all">
-                            <Trash2 className="w-5 h-5" />
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(inst.id, inst.email)} className="w-10 h-10 bg-white/5 hover:bg-red-500 hover:text-white rounded-xl transition-all">
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>

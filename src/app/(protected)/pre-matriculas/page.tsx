@@ -234,15 +234,15 @@ export default function PreEnrollmentsPage() {
         className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[3rem] overflow-hidden shadow-2xl"
       >
         <div className="overflow-x-auto no-scrollbar">
-          <Table>
+          <Table className="min-w-[800px] lg:min-w-full">
             <TableHeader className="bg-white/5 border-b border-white/5">
               <TableRow className="border-none hover:bg-transparent">
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 px-10">MATRÍCULA / ID</TableHead>
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">CANDIDATO</TableHead>
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">RESPONSÁVEL</TableHead>
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">AGENDAMENTO</TableHead>
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8">STATUS</TableHead>
-                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-8 text-right px-10">AÇÕES</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6 px-6">MATRÍCULA / ID</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">CANDIDATO</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6 hidden xl:table-cell">RESPONSÁVEL</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">AGENDAMENTO</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6">STATUS</TableHead>
+                <TableHead className="text-zinc-500 font-black text-[10px] uppercase tracking-widest py-6 text-right px-6">AÇÕES</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -261,32 +261,32 @@ export default function PreEnrollmentsPage() {
               ) : (
                 filteredEnrollments.map((e) => (
                   <TableRow key={e.id} className="border-b border-white/5 hover:bg-white/5 transition-all duration-300 group">
-                    <TableCell className="py-8 px-10">
+                    <TableCell className="py-6 px-6">
                       <span className={cn(
-                        "font-mono text-sm tracking-widest",
+                        "font-mono text-[11px] tracking-widest",
                         e.matricula_pfm ? "text-emerald-500 font-black" : "text-zinc-500"
                       )}>
                         {e.matricula_pfm || e.chave_acesso || "---"}
                       </span>
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="flex flex-col">
-                        <span className="text-white font-black uppercase italic tracking-tighter text-lg">{e.nome_completo}</span>
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Guerra: {e.nome_guerra || "---"} • {calculateAge(e.data_nascimento)} anos</span>
+                    <TableCell className="py-6">
+                      <div className="flex flex-col max-w-[200px] md:max-w-[300px]">
+                        <span className="text-white font-black uppercase italic tracking-tighter text-sm truncate">{e.nome_completo}</span>
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1 truncate">Guerra: {e.nome_guerra || "---"} • {calculateAge(e.data_nascimento)} anos</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-8">
-                      <span className="text-zinc-400 font-black uppercase text-xs tracking-tight">{e.responsavel_nome}</span>
+                    <TableCell className="py-6 hidden xl:table-cell">
+                      <span className="text-zinc-400 font-black uppercase text-[10px] tracking-tight truncate block max-w-[150px]">{e.responsavel_nome}</span>
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="flex items-center gap-2 text-zinc-300 font-bold">
-                        <Calendar className="w-4 h-4 text-amber-500 opacity-50" />
+                    <TableCell className="py-6 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-zinc-300 font-bold text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-amber-500 opacity-50" />
                         {e.data_agendamento ? format(new Date(e.data_agendamento + "T12:00:00"), "dd/MM/yy") : "---"}
                       </div>
                     </TableCell>
-                    <TableCell className="py-8">
+                    <TableCell className="py-6">
                       <Badge className={cn(
-                        "px-4 py-1.5 rounded-full font-black text-[9px] uppercase tracking-widest",
+                        "px-3 py-1 rounded-full font-black text-[8px] uppercase tracking-widest",
                         e.status === "efetivada" && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
                         e.status === "pendente" && "bg-amber-500/10 text-amber-500 border border-amber-500/20",
                         e.status === "cancelada" && "bg-red-500/10 text-red-500 border border-red-500/20"
@@ -294,11 +294,11 @@ export default function PreEnrollmentsPage() {
                         {e.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right py-8 px-10">
+                    <TableCell className="text-right py-6 px-6">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-12 w-12 p-0 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all">
-                            <MoreVertical className="h-6 w-6" />
+                          <Button variant="ghost" className="h-10 w-10 p-0 hover:bg-white/10 rounded-xl text-zinc-500 hover:text-white transition-all">
+                            <MoreVertical className="h-5 w-5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-zinc-950 border-white/10 text-zinc-300 rounded-3xl p-3 w-56 shadow-2xl">

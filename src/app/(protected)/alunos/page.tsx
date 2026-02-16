@@ -628,20 +628,19 @@ export default function StudentsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
             </div>
           ) : (
-            <div className="w-full overflow-x-auto custom-scrollbar">
-              <Table className="min-w-[1050px] border-collapse">
+            <div className="w-full overflow-x-auto no-scrollbar">
+              <Table className="min-w-[950px] lg:min-w-full border-collapse">
                 <TableHeader className="bg-zinc-800/30">
                   <TableRow className="border-zinc-800 hover:bg-transparent">
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-12 w-[110px]">Turma</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-3 h-12 w-[90px]">Matrícula (ID)</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-12 w-[50px]">Sangue</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-12 min-w-[180px]">Identificação</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-12 w-[160px]">Graduação</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-12 w-[80px]">Idade</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-12 w-[100px]">Gênero</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-12 w-[95px]">Compor.</TableHead>
-                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-12 w-[80px] text-center sticky right-0 bg-zinc-800/80 backdrop-blur-sm z-10">Ações</TableHead>
-
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 w-24">Turma</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-11 w-24">ID</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-11 w-12 hidden xl:table-cell">Sangue</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 min-w-[160px]">Candidato</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 w-40">Graduação</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 w-20">Idade</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 w-28 hidden 2xl:table-cell">Gênero</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-2 h-11 w-24">Compor.</TableHead>
+                    <TableHead className="text-zinc-500 text-[10px] uppercase font-black tracking-widest px-4 h-11 w-20 text-center sticky right-0 bg-zinc-800/80 backdrop-blur-sm z-10 border-l border-zinc-800">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -691,7 +690,7 @@ export default function StudentsPage() {
                               {s.matricula_pfm || "---"}
                             </span>
                           </TableCell>
-                          <TableCell className="px-2 py-3">
+                          <TableCell className="px-2 py-3 hidden xl:table-cell">
                             <span className="text-[9px] font-black text-red-500 bg-red-500/5 px-1.5 py-1 rounded border border-red-500/10 whitespace-nowrap">
                               {s.blood_type || "-"}
                             </span>
@@ -736,7 +735,7 @@ export default function StudentsPage() {
                           <TableCell className="px-4 py-3 text-zinc-400 text-xs font-bold">
                             {age ? `${age} ANOS` : "-"}
                           </TableCell>
-                          <TableCell className="px-4 py-3">
+                          <TableCell className="px-4 py-3 hidden 2xl:table-cell">
                             <Badge variant="outline" className={cn(
                               "text-[9px] font-black uppercase tracking-tighter px-2 py-1 border-zinc-800 flex items-center gap-1 w-fit",
                               isFemale ? "text-pink-400 bg-pink-400/5 border-pink-400/20" : "text-blue-400 bg-blue-400/5 border-blue-400/20"
@@ -755,7 +754,7 @@ export default function StudentsPage() {
                               {behaviorLevel.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="px-2 py-3 text-center w-[80px] sticky right-0 bg-zinc-900/95 backdrop-blur-sm z-10">
+                          <TableCell className="px-4 py-3 text-center w-20 sticky right-0 bg-zinc-900/95 backdrop-blur-sm z-10 border-l border-zinc-800/50">
                             <div className="flex items-center justify-center gap-1">
                               {["admin", "coord_geral", "coord_nucleo"].includes(profile?.role || "") && (
                                 <Button
