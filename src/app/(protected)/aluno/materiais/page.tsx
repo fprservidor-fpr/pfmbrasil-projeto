@@ -85,7 +85,7 @@ export default function AlunoMateriaisPage() {
     try {
       const { data: studentData } = await supabase
         .from("students")
-        .select("turma_id")
+        .select("turma_id, turma")
         .eq("id", studentId)
         .single();
 
@@ -103,9 +103,11 @@ export default function AlunoMateriaisPage() {
 
       if (error) throw error;
 
-      // Filtragem robusta em memória consistente com o dashboard
+      // Filtragem robusta: aceita missões gerais (nulas), pelo UUID da turma ou pelo Nome em texto
       const filtered = (data || []).filter(m =>
-        !m.turma_id || m.turma_id === studentData.turma_id
+        !m.turma_id ||
+        m.turma_id === studentData.turma_id ||
+        (studentData.turma && m.turma_id === studentData.turma)
       );
 
       setMissoes(filtered);

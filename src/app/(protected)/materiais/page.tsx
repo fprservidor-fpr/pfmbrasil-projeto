@@ -5,11 +5,11 @@ import { useReactToPrint } from "react-to-print";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
-import { 
-  BookOpen, 
-  Download, 
-  FileText, 
-  Plus, 
+import {
+  BookOpen,
+  Download,
+  FileText,
+  Plus,
   Trash2,
   ExternalLink,
   Search,
@@ -26,21 +26,21 @@ import {
   Target,
   Calendar,
   Clock,
-    CheckCircle2,
-    AlertCircle,
-    Pencil
-  } from "lucide-react";
+  CheckCircle2,
+  AlertCircle,
+  Pencil
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { PrintableCover } from "@/components/printable-cover";
 import { format, parseISO } from "date-fns";
@@ -99,7 +99,7 @@ export default function MateriaisPage() {
   const [showMissaoModal, setShowMissaoModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("pfm");
-  
+
   // Modal states for Material
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -157,10 +157,11 @@ export default function MateriaisPage() {
         .select("*, missoes_materiais(study_materials(*))")
         .order("data_entrega", { ascending: true });
 
-      if (profile?.role === "aluno" && profile?.student_id) {
-        const { data: student } = await supabase.from("students").select("turma").eq("id", profile.student_id).single();
-        if (student?.turma) {
-          query = query.or(`turma_id.is.null,turma_id.eq.${student.turma}`);
+      if ((profile?.role === "aluno" || profile?.role === "responsavel") && (profile?.student_id || sessionStorage.getItem("selectedStudentId"))) {
+        const id = profile?.student_id || sessionStorage.getItem("selectedStudentId");
+        const { data: student } = await supabase.from("students").select("turma, turma_id").eq("id", id).single();
+        if (student) {
+          query = query.or(`turma_id.is.null,turma_id.eq."${student.turma}",turma_id.eq."${student.turma_id}"`);
         }
       }
 
@@ -181,11 +182,11 @@ export default function MateriaisPage() {
     try {
       const showTestRecords = !!simulatedRole;
       let query = supabase.from("students").select("*").eq("status", "ativo");
-      
+
       if (!showTestRecords) {
         query = query.eq("is_test", false);
       }
-      
+
       if (profile?.role === "responsavel" && profile?.cpf) {
         const cleanCpf = profile.cpf.replace(/\D/g, "").padStart(11, '0');
         query = query.or(`guardian1_cpf.eq.${cleanCpf},guardian2_cpf.eq.${cleanCpf},responsavel_cpf.eq.${cleanCpf}`);
@@ -196,7 +197,7 @@ export default function MateriaisPage() {
       const { data, error } = await query.order("data_matricula", { ascending: true });
       if (error) throw error;
       setStudents(data || []);
-      
+
       if (data && data.length === 1) {
         setSelectedStudent(data[0]);
       } else {
@@ -212,7 +213,7 @@ export default function MateriaisPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title) return toast.error("Título é obrigatório");
-    
+
     try {
       setSubmitting(true);
       let fileUrl = "";
@@ -222,7 +223,7 @@ export default function MateriaisPage() {
         fileUrl = linkUrl;
       } else {
         if (!selectedFile) throw new Error("Arquivo é obrigatório");
-        
+
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${fileName}`;
@@ -236,7 +237,7 @@ export default function MateriaisPage() {
         const { data: { publicUrl } } = supabase.storage
           .from("study-materials")
           .getPublicUrl(filePath);
-        
+
         fileUrl = publicUrl;
       }
 
@@ -270,7 +271,7 @@ export default function MateriaisPage() {
 
     try {
       setSubmitting(true);
-      
+
       const payload = {
         titulo: missaoTitulo,
         descricao: missaoDescricao,
@@ -364,15 +365,15 @@ export default function MateriaisPage() {
 
   const filteredMaterials = materials.filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         m.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      m.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (activeTab === "pfm") return matchesSearch && m.section === "Material PFM";
     if (activeTab === "biblia") return matchesSearch && m.section === "Devocional | Biblia";
     return false;
   });
 
-  const filteredMissoes = missoes.filter(m => 
-    m.titulo.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredMissoes = missoes.filter(m =>
+    m.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.descricao.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -390,19 +391,19 @@ export default function MateriaisPage() {
         </div>
 
         <div className="flex gap-4">
-            {canManage && (
-              <>
-                  <Button 
-                    onClick={() => {
-                      resetMissaoForm();
-                      setShowMissaoModal(true);
-                    }}
-                    className="bg-violet-600 hover:bg-violet-700 text-white font-black px-8 h-12 rounded-2xl shadow-xl shadow-violet-900/20 uppercase text-xs tracking-widest"
-                  >
-                    <Target className="w-5 h-5 mr-2" />
-                    Lançar Atividade
-                  </Button>
-              <Button 
+          {canManage && (
+            <>
+              <Button
+                onClick={() => {
+                  resetMissaoForm();
+                  setShowMissaoModal(true);
+                }}
+                className="bg-violet-600 hover:bg-violet-700 text-white font-black px-8 h-12 rounded-2xl shadow-xl shadow-violet-900/20 uppercase text-xs tracking-widest"
+              >
+                <Target className="w-5 h-5 mr-2" />
+                Lançar Atividade
+              </Button>
+              <Button
                 onClick={() => setShowAddModal(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-8 h-12 rounded-2xl shadow-xl shadow-emerald-900/20 uppercase text-xs tracking-widest"
               >
@@ -437,7 +438,7 @@ export default function MateriaisPage() {
         <TabsContent value="missoes" className="space-y-8 mt-0 outline-none">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
-            <Input 
+            <Input
               placeholder="Buscar missões ou atividades..."
               className="pl-12 bg-zinc-900/50 border-zinc-800 text-zinc-100 h-14 rounded-2xl focus:ring-violet-500/20"
               value={searchTerm}
@@ -473,43 +474,43 @@ export default function MateriaisPage() {
                         <Target className="w-6 h-6" />
                       </div>
                       <div>
-                          <Badge variant="outline" className={cn(
-                            "uppercase text-[10px] font-black tracking-[0.2em] mb-1 px-3 py-1",
-                            missao.tipo === 'missao' ? "border-red-500/20 text-red-500 bg-red-500/5" : "border-blue-500/20 text-blue-500 bg-blue-500/5"
-                          )}>
-                            {missao.tipo === 'missao' ? 'Missões' : 'Atividades'}
-                          </Badge>
+                        <Badge variant="outline" className={cn(
+                          "uppercase text-[10px] font-black tracking-[0.2em] mb-1 px-3 py-1",
+                          missao.tipo === 'missao' ? "border-red-500/20 text-red-500 bg-red-500/5" : "border-blue-500/20 text-blue-500 bg-blue-500/5"
+                        )}>
+                          {missao.tipo === 'missao' ? 'Missões' : 'Atividades'}
+                        </Badge>
                         <h3 className="text-xl font-black text-white uppercase tracking-tight group-hover:text-violet-400 transition-colors">
                           {missao.titulo}
                         </h3>
                       </div>
                     </div>
-                      <div className="flex items-center gap-1">
-                        {canManage && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-zinc-600 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl"
-                              onClick={() => handleEditMissao(missao)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
-                              onClick={async () => {
-                                if (!confirm("Excluir esta missão?")) return;
-                                await supabase.from("missoes_atividades").delete().eq("id", missao.id);
-                                fetchMissoes();
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1">
+                      {canManage && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-zinc-600 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl"
+                            onClick={() => handleEditMissao(missao)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+                            onClick={async () => {
+                              if (!confirm("Excluir esta missão?")) return;
+                              await supabase.from("missoes_atividades").delete().eq("id", missao.id);
+                              fetchMissoes();
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-zinc-500 text-sm mb-8 font-medium line-clamp-2">
@@ -578,7 +579,7 @@ export default function MateriaisPage() {
         </TabsContent>
 
         <TabsContent value="capa" className="mt-0 outline-none">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 lg:grid-cols-2 gap-12"
@@ -608,17 +609,17 @@ export default function MateriaisPage() {
                   </Select>
                 </div>
 
-                  <div className="pt-4">
-                    <Button 
-                      disabled={!selectedStudent}
-                      onClick={() => router.push(`/materiais/imprimir-capa?student_id=${selectedStudent?.id}`)}
-                      className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black h-14 rounded-2xl shadow-xl shadow-amber-900/20 uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <Printer className="w-5 h-5 mr-3" />
-                      Gerar Capa para Impressão
-                    </Button>
-                    <p className="text-center text-[10px] text-zinc-600 uppercase font-bold mt-4 tracking-widest">Formato A4 Retrato • Alta Definição</p>
-                  </div>
+                <div className="pt-4">
+                  <Button
+                    disabled={!selectedStudent}
+                    onClick={() => router.push(`/materiais/imprimir-capa?student_id=${selectedStudent?.id}`)}
+                    className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black h-14 rounded-2xl shadow-xl shadow-amber-900/20 uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Printer className="w-5 h-5 mr-3" />
+                    Gerar Capa para Impressão
+                  </Button>
+                  <p className="text-center text-[10px] text-zinc-600 uppercase font-bold mt-4 tracking-widest">Formato A4 Retrato • Alta Definição</p>
+                </div>
               </div>
 
               <div className="bg-blue-500/5 border border-blue-500/20 p-6 rounded-3xl flex items-start gap-4">
@@ -656,7 +657,7 @@ export default function MateriaisPage() {
         <TabsContent value="pfm" className="space-y-8 mt-0 outline-none">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
-            <Input 
+            <Input
               placeholder="Buscar material..."
               className="pl-12 bg-zinc-900/50 border-zinc-800 text-zinc-100 h-14 rounded-2xl focus:ring-emerald-500/20"
               value={searchTerm}
@@ -670,26 +671,26 @@ export default function MateriaisPage() {
                 <div key={i} className="h-48 bg-zinc-900/50 animate-pulse rounded-3xl border border-zinc-800" />
               ))}
             </div>
-            ) : filteredMaterials.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredMaterials.map((material) => (
-                    <div
-                      key={material.id}
-                      className="group bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-8 hover:border-emerald-500/50 transition-all shadow-xl hover:shadow-emerald-500/5 relative overflow-hidden"
-                    >
+          ) : filteredMaterials.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMaterials.map((material) => (
+                <div
+                  key={material.id}
+                  className="group bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-8 hover:border-emerald-500/50 transition-all shadow-xl hover:shadow-emerald-500/5 relative overflow-hidden"
+                >
 
 
                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <ShieldCheck className="w-20 h-20 text-emerald-500" />
                   </div>
-                  
+
                   <div className="flex items-start justify-between mb-6 relative z-10">
                     <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
                       <FileText className="text-emerald-500 w-7 h-7" />
                     </div>
                     {canManage && (
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                         onClick={async () => {
@@ -715,17 +716,17 @@ export default function MateriaisPage() {
                   </p>
 
                   <div className="flex gap-3 relative z-10">
-                      <Button 
-                        asChild
-                        className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-none rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
-                      >
-                        <a href={material.file_url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="w-4 h-4 mr-2" />
-                          Baixar
-                        </a>
-                      </Button>
+                    <Button
+                      asChild
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-none rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
+                    >
+                      <a href={material.file_url} download target="_blank" rel="noopener noreferrer">
+                        <Download className="w-4 h-4 mr-2" />
+                        Baixar
+                      </a>
+                    </Button>
 
-                    <Button 
+                    <Button
                       asChild
                       variant="outline"
                       className="flex-1 border-zinc-800 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
@@ -734,12 +735,12 @@ export default function MateriaisPage() {
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Abrir
                       </a>
-                      </Button>
-                    </div>
+                    </Button>
                   </div>
-                ))}
-              </div>
-            ) : (
+                </div>
+              ))}
+            </div>
+          ) : (
 
 
             <div className="text-center py-32 bg-zinc-900/30 rounded-[3rem] border-2 border-dashed border-zinc-800">
@@ -753,7 +754,7 @@ export default function MateriaisPage() {
         <TabsContent value="biblia" className="space-y-8 mt-0 outline-none">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
-            <Input 
+            <Input
               placeholder="Buscar conteúdo bíblico..."
               className="pl-12 bg-zinc-900/50 border-zinc-800 text-zinc-100 h-14 rounded-2xl focus:ring-blue-500/20"
               value={searchTerm}
@@ -769,25 +770,25 @@ export default function MateriaisPage() {
             </div>
           ) : filteredMaterials.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredMaterials.map((material) => (
-                    <div
-                      key={material.id}
-                      className="group bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-8 hover:border-blue-500/50 transition-all shadow-xl hover:shadow-blue-500/5 relative overflow-hidden"
-                    >
+              {filteredMaterials.map((material) => (
+                <div
+                  key={material.id}
+                  className="group bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-8 hover:border-blue-500/50 transition-all shadow-xl hover:shadow-blue-500/5 relative overflow-hidden"
+                >
 
 
 
                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Book className="w-20 h-20 text-blue-500" />
                   </div>
-                  
+
                   <div className="flex items-start justify-between mb-6 relative z-10">
                     <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20">
                       <Heart className="text-blue-500 w-7 h-7" />
                     </div>
                     {canManage && (
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                         onClick={async () => {
@@ -813,17 +814,17 @@ export default function MateriaisPage() {
                   </p>
 
                   <div className="flex gap-3 relative z-10">
-                      <Button 
-                        asChild
-                        className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-none rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
-                      >
-                        <a href={material.file_url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="w-4 h-4 mr-2" />
-                          Baixar
-                        </a>
-                      </Button>
+                    <Button
+                      asChild
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-none rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
+                    >
+                      <a href={material.file_url} download target="_blank" rel="noopener noreferrer">
+                        <Download className="w-4 h-4 mr-2" />
+                        Baixar
+                      </a>
+                    </Button>
 
-                    <Button 
+                    <Button
                       asChild
                       variant="outline"
                       className="flex-1 border-zinc-800 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl h-11 font-bold text-xs uppercase tracking-widest"
@@ -832,12 +833,12 @@ export default function MateriaisPage() {
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Abrir
                       </a>
-                      </Button>
-                    </div>
+                    </Button>
                   </div>
-                ))}
-              </div>
-            ) : (
+                </div>
+              ))}
+            </div>
+          ) : (
 
 
             <div className="text-center py-32 bg-zinc-900/30 rounded-[3rem] border-2 border-dashed border-zinc-800">
@@ -860,7 +861,7 @@ export default function MateriaisPage() {
               onClick={() => !submitting && setShowAddModal(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            
+
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -925,11 +926,10 @@ export default function MateriaisPage() {
                   <button
                     type="button"
                     onClick={() => setUploadType("file")}
-                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${
-                      uploadType === "file" 
-                        ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-lg shadow-emerald-500/5" 
+                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${uploadType === "file"
+                        ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-lg shadow-emerald-500/5"
                         : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
-                    }`}
+                      }`}
                   >
                     <UploadCloud className="w-5 h-5" />
                     <span className="font-black text-[10px] uppercase tracking-widest">Arquivo Local</span>
@@ -937,11 +937,10 @@ export default function MateriaisPage() {
                   <button
                     type="button"
                     onClick={() => setUploadType("link")}
-                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${
-                      uploadType === "link" 
-                        ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-lg shadow-emerald-500/5" 
+                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${uploadType === "link"
+                        ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-lg shadow-emerald-500/5"
                         : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
-                    }`}
+                      }`}
                   >
                     <LinkIcon className="w-5 h-5" />
                     <span className="font-black text-[10px] uppercase tracking-widest">Link Externo</span>
@@ -1037,62 +1036,60 @@ export default function MateriaisPage() {
               onClick={() => !submitting && setShowMissaoModal(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            
+
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
             >
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tighter text-white">
-                      {editingMissao ? 'Editar' : 'Lançar'} Atividades e Missões
-                    </h2>
-                    <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mt-1">
-                      {editingMissao ? 'Atualize os' : 'Defina'} objetivos e prazos para os alunos
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-full"
-                    onClick={() => {
-                      setShowMissaoModal(false);
-                      resetMissaoForm();
-                    }}
-                    disabled={submitting}
-                  >
-                    <X className="w-6 h-6" />
-                  </Button>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tighter text-white">
+                    {editingMissao ? 'Editar' : 'Lançar'} Atividades e Missões
+                  </h2>
+                  <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mt-1">
+                    {editingMissao ? 'Atualize os' : 'Defina'} objetivos e prazos para os alunos
+                  </p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded-full"
+                  onClick={() => {
+                    setShowMissaoModal(false);
+                    resetMissaoForm();
+                  }}
+                  disabled={submitting}
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
 
               <form onSubmit={handleMissaoSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setMissaoTipo("missao")}
-                      className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${
-                        missaoTipo === "missao" 
-                          ? "bg-red-500/10 border-red-500/50 text-red-500 shadow-lg shadow-red-500/5" 
-                          : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
+                  <button
+                    type="button"
+                    onClick={() => setMissaoTipo("missao")}
+                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${missaoTipo === "missao"
+                        ? "bg-red-500/10 border-red-500/50 text-red-500 shadow-lg shadow-red-500/5"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
                       }`}
-                    >
-                      <Target className="w-5 h-5" />
-                      <span className="font-black text-[10px] uppercase tracking-widest">Missões</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMissaoTipo("atividade")}
-                      className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${
-                        missaoTipo === "atividade" 
-                          ? "bg-blue-500/10 border-blue-500/50 text-blue-500 shadow-lg shadow-blue-500/5" 
-                          : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
+                  >
+                    <Target className="w-5 h-5" />
+                    <span className="font-black text-[10px] uppercase tracking-widest">Missões</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMissaoTipo("atividade")}
+                    className={`flex items-center justify-center gap-3 p-5 rounded-2xl border transition-all ${missaoTipo === "atividade"
+                        ? "bg-blue-500/10 border-blue-500/50 text-blue-500 shadow-lg shadow-blue-500/5"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:bg-zinc-800"
                       }`}
-                    >
-                      <BookOpen className="w-5 h-5" />
-                      <span className="font-black text-[10px] uppercase tracking-widest">Atividades</span>
-                    </button>
+                  >
+                    <BookOpen className="w-5 h-5" />
+                    <span className="font-black text-[10px] uppercase tracking-widest">Atividades</span>
+                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -1173,13 +1170,13 @@ export default function MateriaisPage() {
                       {missaoMateriaisIds.map(id => {
                         const material = materials.find(m => m.id === id);
                         return (
-                          <Badge 
-                            key={id} 
-                            variant="secondary" 
+                          <Badge
+                            key={id}
+                            variant="secondary"
                             className="bg-violet-500/10 text-violet-400 border-violet-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2"
                           >
                             <span className="uppercase text-[9px] font-black">{material?.title}</span>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setMissaoMateriaisIds(missaoMateriaisIds.filter(mid => mid !== id))}
                               className="hover:text-red-400 transition-colors"
@@ -1203,13 +1200,13 @@ export default function MateriaisPage() {
                   >
                     Cancelar
                   </button>
-                    <Button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black h-14 rounded-2xl shadow-xl shadow-violet-900/20 uppercase text-xs tracking-[0.2em]"
-                    >
-                      {submitting ? "Processando..." : (editingMissao ? "Salvar Alterações" : "Lançar Missão")}
-                    </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black h-14 rounded-2xl shadow-xl shadow-violet-900/20 uppercase text-xs tracking-[0.2em]"
+                  >
+                    {submitting ? "Processando..." : (editingMissao ? "Salvar Alterações" : "Lançar Missão")}
+                  </Button>
                 </div>
               </form>
             </motion.div>

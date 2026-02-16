@@ -87,8 +87,10 @@ export default function AlunoPage() {
         setStudent(studentRes.data);
 
         const filteredMissoes = (missoesRes.data || []).filter(m => {
-          if (m.turma_id && m.turma_id !== studentRes.data.turma_id) return false;
-          return true;
+          if (!m.turma_id) return true;
+          if (m.turma_id === studentRes.data.turma_id) return true;
+          if (studentRes.data.turma && m.turma_id === studentRes.data.turma) return true;
+          return false;
         });
 
         setActiveMissoes(filteredMissoes);

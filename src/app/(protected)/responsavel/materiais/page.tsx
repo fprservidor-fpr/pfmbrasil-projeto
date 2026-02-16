@@ -76,7 +76,7 @@ export default function ResponsavelMateriaisPage() {
 
   useEffect(() => {
     if (selectedStudent) {
-      fetchMissoes(selectedStudent.turma_id);
+      fetchMissoes(selectedStudent.turma_id, selectedStudent.turma);
     }
   }, [selectedStudent]);
 
@@ -94,7 +94,7 @@ export default function ResponsavelMateriaisPage() {
     }
   }
 
-  async function fetchMissoes(turmaId: string) {
+  async function fetchMissoes(turmaId: string, turmaName?: string) {
     try {
       const { data, error } = await supabase
         .from("missoes_atividades")
@@ -108,9 +108,11 @@ export default function ResponsavelMateriaisPage() {
 
       if (error) throw error;
 
-      // Filtragem robusta em memória consistente com a visão do aluno e dashboard
+      // Filtragem robusta: aceita missões gerais (nulas), pelo UUID da turma ou pelo Nome em texto
       const filtered = (data || []).filter(m =>
-        !m.turma_id || m.turma_id === turmaId
+        !m.turma_id ||
+        m.turma_id === turmaId ||
+        (turmaName && m.turma_id === turmaName)
       );
 
       setMissoes(filtered);
