@@ -386,46 +386,64 @@ export default function DashSaudePFMPage() {
               </DialogHeader>
 
               <div className="p-8 overflow-y-auto max-h-[70vh] custom-scrollbar space-y-8">
-                {/* Physical Data */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <DataPoint icon={Weight} label="Peso" value={`${viewingRecord.weight || "---"} kg`} />
-                  <DataPoint icon={Ruler} label="Altura" value={`${viewingRecord.height || "---"} m`} />
-                  <div className={cn(
-                    "col-span-2 p-4 rounded-3xl border flex items-center justify-between",
-                    getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).bg,
-                    getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).border
-                  )}>
-                    <div>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">IMC Profissional</p>
-                      <p className="text-2xl font-black text-white">{(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).toFixed(2)}</p>
+                {viewingRecord.identified_problems === "ENFERMAGEM" ? (
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                      <ClipboardList className="w-5 h-5 text-blue-500" />
+                      <h3 className="text-sm font-black text-white uppercase tracking-widest">Dossiê de Enfermagem</h3>
                     </div>
-                    <Badge className={cn("font-black text-[10px] uppercase tracking-widest px-3 py-1 rounded-full", getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).color)}>
-                      {getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).label}
-                    </Badge>
+                    {/* Qualitative Data */}
+                    <div className="space-y-6">
+                      <QualitativeBlock label="Observações de Enfermagem" content={viewingRecord.instructor_notes?.replace("[ENFERMAGEM] - ", "")} />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                      <Stethoscope className="w-5 h-5 text-rose-500" />
+                      <h3 className="text-sm font-black text-white uppercase tracking-widest">Avaliação de Educação Física</h3>
+                    </div>
+                    {/* Physical Data */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <DataPoint icon={Weight} label="Peso" value={`${viewingRecord.weight || "---"} kg`} />
+                      <DataPoint icon={Ruler} label="Altura" value={`${viewingRecord.height || "---"} m`} />
+                      <div className={cn(
+                        "col-span-2 p-4 rounded-3xl border flex items-center justify-between",
+                        getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).bg,
+                        getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).border
+                      )}>
+                        <div>
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">IMC Profissional</p>
+                          <p className="text-2xl font-black text-white">{(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).toFixed(2)}</p>
+                        </div>
+                        <Badge className={cn("font-black text-[10px] uppercase tracking-widest px-3 py-1 rounded-full", getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).color)}>
+                          {getIMCCategory(viewingRecord.weight / (viewingRecord.height * viewingRecord.height)).label}
+                        </Badge>
+                      </div>
+                    </div>
 
-                {/* TAF Results */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Award className="w-4 h-4 text-yellow-500" />
-                    Resultados do TAF
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <TafItem label="Corrida 12m" value={viewingRecord.taf_run_12min ? `${viewingRecord.taf_run_12min}m` : "---"} />
-                    <TafItem label="Polichinelo" value={viewingRecord.taf_jumping_jacks || "---"} />
-                    <TafItem label="Flexão" value={viewingRecord.taf_push_ups || "---"} />
-                    <TafItem label="Abdominal" value={viewingRecord.taf_sit_ups || "---"} />
+                    {/* TAF Results */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Award className="w-4 h-4 text-yellow-500" />
+                        Resultados do TAF
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <TafItem label="Corrida 12m" value={viewingRecord.taf_run_12min ? `${viewingRecord.taf_run_12min}m` : "---"} />
+                        <TafItem label="Polichinelo" value={viewingRecord.taf_jumping_jacks || "---"} />
+                        <TafItem label="Flexão" value={viewingRecord.taf_push_ups || "---"} />
+                        <TafItem label="Abdominal" value={viewingRecord.taf_sit_ups || "---"} />
+                      </div>
+                    </div>
+
+                    {/* Qualitative Data */}
+                    <div className="space-y-6">
+                      <QualitativeBlock label="Dificuldades e Problemas Identificados" content={viewingRecord.difficulties} />
+                      <QualitativeBlock label="Ações e Projetos de Melhoria" content={viewingRecord.improvement_projects} />
+                      <QualitativeBlock label="Observações Adicionais do Instrutor" content={viewingRecord.instructor_notes} />
+                    </div>
                   </div>
-                </div>
-
-                {/* Qualitative Data */}
-                <div className="space-y-6">
-                  <QualitativeBlock label="Dificuldades e Problemas Identificados" content={viewingRecord.difficulties} />
-                  <QualitativeBlock label="Ações e Projetos de Melhoria" content={viewingRecord.improvement_projects} />
-                  <QualitativeBlock label="Identificação Técnica" content={viewingRecord.identified_problems} />
-                  <QualitativeBlock label="Observações Adicionais do Instrutor" content={viewingRecord.instructor_notes} />
-                </div>
+                )}
 
                 {/* Alerts */}
                 {viewingRecord.has_alert && (
@@ -501,10 +519,18 @@ function DossierCard({ group, onView, onDelete, getIMCCategory }: any) {
               return (
                 <div key={r.id} className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3 text-rose-500" />
-                      Ref: {format(new Date(r.created_at), "dd/MM/yyyy")}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-rose-500" />
+                        Ref: {format(new Date(r.created_at), "dd/MM/yyyy")}
+                      </span>
+                      <Badge className={cn(
+                        "text-[7px] font-black uppercase tracking-tighter px-1.5 py-0.5 w-fit",
+                        r.identified_problems === "ENFERMAGEM" ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                      )}>
+                        {r.identified_problems || "AVALIAÇÃO"}
+                      </Badge>
+                    </div>
                     <div className="flex items-center gap-1">
                       <Button onClick={() => onView(r)} variant="ghost" size="icon" className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
                       <Link href={`/saude-pfm?student=${r.student_id}&edit=${r.id}`}><Button variant="ghost" size="icon" className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-500"><Pencil className="w-3.5 h-3.5" /></Button></Link>
@@ -512,28 +538,40 @@ function DossierCard({ group, onView, onDelete, getIMCCategory }: any) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800">
-                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">Peso/Alt</p>
-                      <p className="text-[10px] font-black text-white tracking-tight">{r.weight}kg / {r.height}m</p>
-                    </div>
-                    <div className={cn("p-2 rounded-xl border", rImcCat.bg, rImcCat.border)}>
-                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">IMC</p>
-                      <p className={cn("text-[10px] font-black tracking-tight", rImcCat.color)}>{rImc.toFixed(1)} - {rImcCat.label}</p>
-                    </div>
-                  </div>
+                  {r.identified_problems !== "ENFERMAGEM" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800">
+                          <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">Peso/Alt</p>
+                          <p className="text-[10px] font-black text-white tracking-tight">{r.weight}kg / {r.height}m</p>
+                        </div>
+                        <div className={cn("p-2 rounded-xl border", rImcCat.bg, rImcCat.border)}>
+                          <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">IMC</p>
+                          <p className={cn("text-[10px] font-black tracking-tight", rImcCat.color)}>{rImc.toFixed(1)} - {rImcCat.label}</p>
+                        </div>
+                      </div>
 
-                  <div className="bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/50 space-y-1.5">
-                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Award className="w-2.5 h-2.5 text-yellow-500" /> TAF
-                    </p>
-                    <div className="flex justify-between text-[9px] font-bold text-zinc-400">
-                      <span>Corr: {r.taf_run_12min || 0}m</span>
-                      <span>Pol: {r.taf_jumping_jacks || 0}</span>
-                      <span>Flex: {r.taf_push_ups || 0}</span>
-                      <span>Abd: {r.taf_sit_ups || 0}</span>
+                      <div className="bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/50 space-y-1.5">
+                        <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Award className="w-2.5 h-2.5 text-yellow-500" /> TAF
+                        </p>
+                        <div className="flex justify-between text-[9px] font-bold text-zinc-400">
+                          <span>Corr: {r.taf_run_12min || 0}m</span>
+                          <span>Pol: {r.taf_jumping_jacks || 0}</span>
+                          <span>Flex: {r.taf_push_ups || 0}</span>
+                          <span>Abd: {r.taf_sit_ups || 0}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {r.identified_problems === "ENFERMAGEM" && (
+                    <div className="bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/50">
+                      <p className="text-[9px] text-zinc-400 italic line-clamp-2">
+                        {r.instructor_notes?.replace("[ENFERMAGEM] - ", "") || "Registro de enfermagem realizado."}
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}

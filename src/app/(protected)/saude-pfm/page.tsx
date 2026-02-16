@@ -42,7 +42,8 @@ import {
   X,
   LayoutDashboard,
   Trophy,
-  Users
+  Users,
+  Printer
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -50,6 +51,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { Textarea } from "@/components/ui/textarea";
+import { jsPDF } from "jspdf";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +83,7 @@ export default function SaudePFMPage() {
   const [savingObs, setSavingObs] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingRecord, setViewingRecord] = useState<any>(null);
+  const [printingReport, setPrintingReport] = useState(false);
 
   const [evalForm, setEvalForm] = useState({
     weight: "",
@@ -118,6 +121,20 @@ export default function SaudePFMPage() {
   const isInstructor = ["admin", "coord_geral", "coord_nucleo", "instrutor"].includes(profile?.role || "");
   const isGuardian = ["guardian", "responsavel"].includes(profile?.role || "");
 
+  const [nursingForm, setNursingForm] = useState({
+    health_1_plano_saude: false,
+    health_2_vacina_covid: false,
+    health_3_assistencia_social: false,
+    health_4_psicologo: false,
+    health_5_transtorno_psiquico: false,
+    health_7_epiletico: false,
+    health_8_diabetico: false,
+    health_9_atividade_fisica: false,
+    alergias: "",
+    medicamentos: "",
+    observacoes: ""
+  });
+
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -146,6 +163,19 @@ export default function SaudePFMPage() {
   const handleSelectStudent = async (student: any) => {
     setSelectedStudent(student);
     setObservations(student.observacoes || "");
+    setNursingForm({
+      health_1_plano_saude: student.health_1_plano_saude || false,
+      health_2_vacina_covid: student.health_2_vacina_covid || false,
+      health_3_assistencia_social: student.health_3_assistencia_social || false,
+      health_4_psicologo: student.health_4_psicologo || false,
+      health_5_transtorno_psiquico: student.health_5_transtorno_psiquico || false,
+      health_7_epiletico: student.health_7_epiletico || false,
+      health_8_diabetico: student.health_8_diabetico || false,
+      health_9_atividade_fisica: student.health_9_atividade_fisica || false,
+      alergias: student.alergias || "",
+      medicamentos: student.medicamentos || "",
+      observacoes: student.observacoes || ""
+    });
     setEditingId(null);
     setLoading(true);
     try {
@@ -188,20 +218,51 @@ export default function SaudePFMPage() {
     }
   };
 
-  const handleSaveObservations = async () => {
+  const handleSaveNursing = async () => {
     if (!selectedStudent) return;
     setSavingObs(true);
     try {
-      const { error } = await supabase
+      const studentUpdate = {
+        observacoes: nursingForm.observacoes,
+        alergias: nursingForm.alergias,
+        medicamentos: nursingForm.medicamentos,
+        health_1_plano_saude: nursingForm.health_1_plano_saude,
+        health_2_vacina_covid: nursingForm.health_2_vacina_covid,
+        health_3_assistencia_social: nursingForm.health_3_assistencia_social,
+        health_4_psicologo: nursingForm.health_4_psicologo,
+        health_5_transtorno_psiquico: nursingForm.health_5_transtorno_psiquico,
+        health_7_epiletico: nursingForm.health_7_epiletico,
+        health_8_diabetico: nursingForm.health_8_diabetico,
+        health_9_atividade_fisica: nursingForm.health_9_atividade_fisica,
+        has_health_alert: evalForm.has_alert,
+        health_alert_description: evalForm.alert_description
+      };
+
+      const { error: sError } = await supabase
         .from("students")
-        .update({ observacoes: observations })
+        .update(studentUpdate)
         .eq("id", selectedStudent.id);
-      if (error) throw error;
-      toast.success("Observações salvas com sucesso!");
-      setSelectedStudent({ ...selectedStudent, observacoes: observations });
-      setStudents(students.map(s => s.id === selectedStudent.id ? { ...s, observacoes: observations } : s));
+
+      if (sError) throw sError;
+
+      // Also register in history
+      const recordData = {
+        student_id: selectedStudent.id,
+        instructor_id: profile?.id,
+        instructor_notes: `[ENFERMAGEM] - ${nursingForm.observacoes || "Atualização de ficha médica."}`,
+        identified_problems: "ENFERMAGEM",
+        has_alert: evalForm.has_alert,
+        alert_description: evalForm.alert_description,
+        updated_at: new Date().toISOString()
+      };
+
+      await supabase.from("student_health_records").insert([recordData]);
+
+      toast.success("Dossiê de Enfermagem registrado com sucesso!");
+      handleSelectStudent({ ...selectedStudent, ...studentUpdate });
+      setStudents(students.map(s => s.id === selectedStudent.id ? { ...s, ...studentUpdate } : s));
     } catch (error: any) {
-      toast.error("Erro ao salvar observações: " + error.message);
+      toast.error("Erro ao salvar: " + error.message);
     } finally {
       setSavingObs(false);
     }
@@ -221,11 +282,11 @@ export default function SaudePFMPage() {
         taf_push_ups: evalForm.taf_push_ups ? parseInt(evalForm.taf_push_ups) : null,
         taf_sit_ups: evalForm.taf_sit_ups ? parseInt(evalForm.taf_sit_ups) : null,
         difficulties: evalForm.difficulties,
-        identified_problems: evalForm.identified_problems,
         improvement_projects: evalForm.improvement_projects,
         instructor_notes: evalForm.instructor_notes,
         has_alert: evalForm.has_alert,
         alert_description: evalForm.alert_description,
+        identified_problems: "EDUCAÇÃO FÍSICA",
         updated_at: new Date().toISOString()
       };
 
@@ -250,6 +311,101 @@ export default function SaudePFMPage() {
       toast.error("Erro ao salvar: " + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePrintNursingReport = async () => {
+    setPrintingReport(true);
+    try {
+      const { data, error } = await supabase
+        .from("student_health_records")
+        .select("*, students(nome_guerra, nome_completo, matricula_pfm)")
+        .eq("identified_problems", "ENFERMAGEM")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.info("Nenhum registro de enfermagem encontrado.");
+        return;
+      }
+
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(244, 63, 94); // rose-500
+      doc.setFont("helvetica", "bold");
+      doc.text("PFM BRASIL", 105, 20, { align: "center" });
+
+      doc.setFontSize(14);
+      doc.setTextColor(150);
+      doc.text("RELATÓRIO DE REGISTROS DE ENFERMAGEM", 105, 28, { align: "center" });
+
+      doc.setDrawColor(244, 63, 94);
+      doc.setLineWidth(0.5);
+      doc.line(20, 35, 190, 35);
+
+      let y = 50;
+
+      data.forEach((record: any) => {
+        const studentName = record.students?.nome_guerra || record.students?.nome_completo?.split(' ')[0] || "ESTUDANTE";
+        const dateStr = format(new Date(record.created_at), "dd/MM/yyyy");
+        const content = record.instructor_notes?.replace("[ENFERMAGEM] - ", "") || "Sem observações detalhadas.";
+
+        // Split text and calculate height
+        const textLines = doc.splitTextToSize(content, 170);
+        const blockHeight = (textLines.length * 6) + 15;
+
+        if (y + blockHeight > 280) {
+          doc.addPage();
+          y = 30;
+        }
+
+        // Student Identifier with background
+        doc.setFillColor(244, 63, 94, 0.05);
+        doc.roundedRect(20, y - 5, 170, 10, 1, 1, "F");
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(244, 63, 94);
+        doc.text(studentName.toUpperCase(), 25, y + 1.5);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        doc.text(`|  Registrado em: ${dateStr}`, 70, y + 1.5);
+
+        y += 12;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(40);
+        doc.setFontSize(11);
+        doc.text(textLines, 25, y);
+
+        y += (textLines.length * 6) + 12;
+
+        doc.setDrawColor(240);
+        doc.setLineWidth(0.1);
+        doc.line(20, y - 8, 190, y - 8);
+      });
+
+      // Footer with page numbers
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount}`, 105, 290, { align: "center" });
+        doc.text("PFM BRASIL - Programa de Formação de Monitores", 20, 290);
+      }
+
+      doc.save(`Relatorio_Enfermagem_PFM_${format(new Date(), "ddMMyyyy")}.pdf`);
+      toast.success("Relatório PDF gerado com sucesso!");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao gerar PDF: " + error.message);
+    } finally {
+      setPrintingReport(false);
     }
   };
 
@@ -507,59 +663,93 @@ export default function SaudePFMPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="bg-zinc-900/50 border-zinc-800 rounded-3xl overflow-hidden">
-                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800"><CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><ClipboardList className="w-4 h-4 text-rose-500" />Informações do Responsável</CardTitle></CardHeader>
+                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4 text-rose-500" />
+                      Seção de Enfermagem
+                    </CardTitle>
+                    {isInstructor && (
+                      <Button
+                        onClick={handlePrintNursingReport}
+                        disabled={printingReport}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 border-rose-500/20 text-rose-500 hover:bg-rose-500/10 font-black text-[10px] uppercase tracking-widest gap-2 rounded-xl transition-all"
+                      >
+                        {printingReport ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                        IMPRIMIR RELATÓRIO
+                      </Button>
+                    )}
+                  </CardHeader>
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
-                        <HealthItem label="Plano de Saúde" value={selectedStudent.health_1_plano_saude} desc={selectedStudent.health_plano_saude_descricao} />
-                        <HealthItem label="Vacina COVID" value={selectedStudent.health_2_vacina_covid} />
-                        <HealthItem label="Assist. Social" value={selectedStudent.health_3_assistencia_social} />
-                        <HealthItem label="Psicólogo" value={selectedStudent.health_4_psicologo} />
-                        <HealthItem label="Transtorno Psíq." value={selectedStudent.health_5_transtorno_psiquico} />
-                        <HealthItem label="Epilético" value={selectedStudent.health_7_epiletico} />
-                        <HealthItem label="Diabético" value={selectedStudent.health_8_diabetico} />
-                        <HealthItem label="Atividade Física" value={selectedStudent.health_9_atividade_fisica} />
+                        <NursingToggle label="Plano de Saúde" value={nursingForm.health_1_plano_saude} onChange={(v) => setNursingForm({ ...nursingForm, health_1_plano_saude: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Vacina COVID" value={nursingForm.health_2_vacina_covid} onChange={(v) => setNursingForm({ ...nursingForm, health_2_vacina_covid: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Assist. Social" value={nursingForm.health_3_assistencia_social} onChange={(v) => setNursingForm({ ...nursingForm, health_3_assistencia_social: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Psicólogo" value={nursingForm.health_4_psicologo} onChange={(v) => setNursingForm({ ...nursingForm, health_4_psicologo: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Transtorno Psíq." value={nursingForm.health_5_transtorno_psiquico} onChange={(v) => setNursingForm({ ...nursingForm, health_5_transtorno_psiquico: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Epilético" value={nursingForm.health_7_epiletico} onChange={(v) => setNursingForm({ ...nursingForm, health_7_epiletico: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Diabético" value={nursingForm.health_8_diabetico} onChange={(v) => setNursingForm({ ...nursingForm, health_8_diabetico: v })} isInstructor={isInstructor} />
+                        <NursingToggle label="Atividade Física" value={nursingForm.health_9_atividade_fisica} onChange={(v) => setNursingForm({ ...nursingForm, health_9_atividade_fisica: v })} isInstructor={isInstructor} />
                       </div>
                       <div className="space-y-2 pt-2">
                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Alergias</p>
-                        <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.alergias || "Nenhuma informada"}</p>
+                        {isInstructor ? (
+                          <Input value={nursingForm.alergias} onChange={(e) => setNursingForm({ ...nursingForm, alergias: e.target.value })} placeholder="Nenhuma informada" className="bg-zinc-950 border-zinc-800 text-white h-11 rounded-xl" />
+                        ) : (
+                          <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.alergias || "Nenhuma informada"}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Medicamentos</p>
-                        <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.medicamentos || "Nenhum informado"}</p>
+                        {isInstructor ? (
+                          <Input value={nursingForm.medicamentos} onChange={(e) => setNursingForm({ ...nursingForm, medicamentos: e.target.value })} placeholder="Nenhum informado" className="bg-zinc-950 border-zinc-800 text-white h-11 rounded-xl" />
+                        ) : (
+                          <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.medicamentos || "Nenhum informado"}</p>
+                        )}
                       </div>
                       <div className="space-y-4 pt-4 border-t border-zinc-800">
                         <div className="space-y-2">
                           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">Observações do Instrutor {isInstructor && <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">Editável</span>}</p>
-                          {isInstructor ? <Textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Adicione observações importantes sobre a saúde deste aluno..." className="bg-zinc-950 border-zinc-800 text-white min-h-[100px] rounded-xl text-xs resize-none focus:ring-rose-500/20" /> : <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.observacoes || "Nenhuma observação registrada"}</p>}
+                          {isInstructor ? <Textarea value={nursingForm.observacoes} onChange={(e) => setNursingForm({ ...nursingForm, observacoes: e.target.value })} placeholder="Adicione observações importantes sobre a saúde deste aluno..." className="bg-zinc-950 border-zinc-800 text-white min-h-[100px] rounded-xl text-xs resize-none focus:ring-rose-500/20" /> : <p className="text-xs text-white bg-zinc-950 p-3 rounded-xl border border-zinc-800 min-h-[40px]">{selectedStudent.observacoes || "Nenhuma observação registrada"}</p>}
                         </div>
-                        {isInstructor && <Button onClick={handleSaveObservations} disabled={savingObs} size="sm" className="w-full bg-zinc-100 hover:bg-white text-black font-black text-[10px] uppercase tracking-widest h-10 rounded-xl transition-all">{savingObs ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" />Salvar Observações</>}</Button>}
+                        <div className="pt-4 border-t border-zinc-800 space-y-4 font-sans">
+                          <div className="flex items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
+                            <div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", evalForm.has_alert ? "bg-rose-500/20" : "bg-zinc-800")}><AlertTriangle className={cn("w-5 h-5", evalForm.has_alert ? "text-rose-500" : "text-zinc-500")} /></div><div><p className="text-xs font-black text-white uppercase tracking-tight">Ativar Sinal de Alerta</p><p className="text-[9px] text-zinc-500 font-bold uppercase">Aparecerá no controle de frequência</p></div></div>
+                            <Button onClick={() => setEvalForm({ ...evalForm, has_alert: !evalForm.has_alert })} variant={evalForm.has_alert ? "default" : "outline"} className={cn("rounded-xl h-9 px-4 font-black text-[10px] uppercase tracking-widest", evalForm.has_alert ? "bg-rose-600 hover:bg-rose-500 text-white border-none shadow-lg shadow-rose-600/20" : "border-zinc-800 text-zinc-500")}>{evalForm.has_alert ? "ATIVADO" : "DESATIVADO"}</Button>
+                          </div>
+                          {isInstructor && <Button onClick={handleSaveNursing} disabled={savingObs} size="sm" className="w-full bg-zinc-100 hover:bg-white text-black font-black text-[10px] uppercase tracking-widest h-12 rounded-xl transition-all shadow-xl">{savingObs ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" />REGISTRAR (ENFERMAGEM)</>}</Button>}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-zinc-900/50 border-zinc-800 rounded-3xl overflow-hidden">
-                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800"><CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Stethoscope className="w-4 h-4 text-rose-500" />Avaliação Profissional / Instrutor</CardTitle></CardHeader>
+                  <CardHeader className="bg-zinc-950/50 border-b border-zinc-800"><CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Stethoscope className="w-4 h-4 text-rose-500" />Seção Educação Física</CardTitle></CardHeader>
                   <CardContent className="p-6">
                     {isInstructor ? (
                       <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Peso (kg)</label>
-                            <div className="relative"><Weight className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-500" /><Input type="number" step="0.1" value={evalForm.weight} onChange={(e) => setEvalForm({ ...evalForm, weight: e.target.value })} className="pl-10 bg-zinc-950 border-zinc-800 text-white h-11 rounded-2xl" /></div>
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-black text-white uppercase tracking-widest">Avaliação Profissional / Instrutor</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Peso (kg)</label>
+                              <div className="relative"><Weight className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-500" /><Input type="number" step="0.1" value={evalForm.weight} onChange={(e) => setEvalForm({ ...evalForm, weight: e.target.value })} className="pl-10 bg-zinc-950 border-zinc-800 text-white h-11 rounded-2xl" /></div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Altura (m)</label>
+                              <div className="relative"><Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-500" /><Input type="number" step="0.01" value={evalForm.height} onChange={(e) => setEvalForm({ ...evalForm, height: e.target.value })} className="pl-10 bg-zinc-950 border-zinc-800 text-white h-11 rounded-2xl" /></div>
+                            </div>
                           </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Altura (m)</label>
-                            <div className="relative"><Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-500" /><Input type="number" step="0.01" value={evalForm.height} onChange={(e) => setEvalForm({ ...evalForm, height: e.target.value })} className="pl-10 bg-zinc-950 border-zinc-800 text-white h-11 rounded-2xl" /></div>
+                          <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><Activity className="w-5 h-5 text-blue-500" /></div>
+                              <div><p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">IMC (A cada 3 meses)</p><p className="text-lg font-black text-white leading-none mt-0.5">{imcValue || "---"}</p></div>
+                            </div>
+                            {imcValue && <Badge className={cn("font-black px-3 py-1 rounded-full bg-zinc-900 border-zinc-800", getIMCCategory(parseFloat(imcValue)).color)}>{getIMCCategory(parseFloat(imcValue)).label}</Badge>}
                           </div>
-                        </div>
-                        <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><Activity className="w-5 h-5 text-blue-500" /></div>
-                            <div><p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">IMC (A cada 3 meses)</p><p className="text-lg font-black text-white leading-none mt-0.5">{imcValue || "---"}</p></div>
-                          </div>
-                          {imcValue && <Badge className={cn("font-black px-3 py-1 rounded-full bg-zinc-900 border-zinc-800", getIMCCategory(parseFloat(imcValue)).color)}>{getIMCCategory(parseFloat(imcValue)).label}</Badge>}
                         </div>
                         <div className="pt-4 border-t border-zinc-800 space-y-4">
                           <div className="flex items-center gap-2 mb-2"><Award className="w-4 h-4 text-yellow-500" /><h3 className="text-xs font-black text-white uppercase tracking-widest">Teste de Aptidão Física (TAF)</h3></div>
@@ -583,7 +773,7 @@ export default function SaudePFMPage() {
                         </div>
                         <div className="flex flex-col gap-3">
                           {editingId && <Button onClick={handleCancelEdit} variant="outline" className="w-full border-zinc-800 text-zinc-500 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl"><X className="w-4 h-4 mr-2" />CANCELAR EDIÇÃO</Button>}
-                          <Button onClick={handleSaveEvaluation} disabled={saving} className={cn("w-full h-12 text-white font-black rounded-2xl shadow-xl transition-all", editingId ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/20" : "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20")}>{saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-2" />{editingId ? "ATUALIZAR REGISTRO" : "SALVAR REGISTRO DE SAÚDE"}</>}</Button>
+                          <Button onClick={handleSaveEvaluation} disabled={saving} className={cn("w-full h-12 text-white font-black rounded-2xl shadow-xl transition-all", editingId ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/20" : "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20")}>{saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-2" />{editingId ? "ATUALIZAR REGISTRO" : "REGISTRAR AVALIAÇÃO (ED. FÍSICA)"}</>}</Button>
                         </div>
                       </div>
                     ) : (
@@ -727,9 +917,35 @@ export default function SaudePFMPage() {
   );
 }
 
+function NursingToggle({ label, value, onChange, isInstructor }: { label: string, value: boolean, onChange: (v: boolean) => void, isInstructor: boolean }) {
+  return (
+    <button
+      disabled={!isInstructor}
+      onClick={() => onChange(!value)}
+      className={cn(
+        "flex flex-col p-4 rounded-2xl border transition-all text-left group",
+        value ? "bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/30" : "bg-zinc-950/30 border-zinc-800/50 hover:border-zinc-700"
+      )}
+    >
+      <div className="flex items-center justify-between w-full mb-3">
+        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</span>
+        <div className={cn(
+          "w-5 h-5 rounded-full border flex items-center justify-center transition-all",
+          value ? "bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-zinc-900 border-zinc-800 shadow-inner"
+        )}>
+          {value && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+        </div>
+      </div>
+      <p className={cn("text-xs font-black uppercase tracking-tight", value ? "text-emerald-500" : "text-zinc-600")}>
+        {value ? "Sim" : "Não"}
+      </p>
+    </button>
+  );
+}
+
 function HealthItem({ label, value, desc }: { label: string, value: boolean, desc?: string }) {
   return (
-    <div className="bg-zinc-950/30 p-4 rounded-2xl border border-zinc-800/50 group hover:border-zinc-700 transition-all transition-colors">
+    <div className="bg-zinc-950/30 p-4 rounded-2xl border border-zinc-800/50 group hover:border-zinc-700 transition-all">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-black text-zinc-500 group-hover:text-zinc-400 uppercase tracking-widest transition-colors">{label}</span>
         <div className={cn(
