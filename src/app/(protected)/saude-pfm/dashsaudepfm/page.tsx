@@ -5,25 +5,25 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { 
+import {
   Heart,
   Activity,
   Stethoscope,
   Weight,
   Ruler,
-    AlertCircle,
-    AlertTriangle,
-    ClipboardList,
+  AlertCircle,
+  AlertTriangle,
+  ClipboardList,
   History,
   Search,
   Loader2,
@@ -41,10 +41,10 @@ import {
   Pencil,
   Trash2,
   FileText,
-    LayoutDashboard,
-    ArrowLeft,
-    Trophy
-  } from "lucide-react";
+  LayoutDashboard,
+  ArrowLeft,
+  Trophy
+} from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -90,10 +90,11 @@ export default function DashSaudePFMPage() {
 
   const fetchStudents = async () => {
     try {
-        const { data, error } = await supabase
-          .from("students")
-          .select("id, nome_completo, nome_guerra, graduacao, matricula_pfm, data_matricula")
-          .order("data_matricula", { ascending: true });
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, nome_completo, nome_guerra, graduacao, matricula_pfm, data_matricula")
+        .neq("nome_completo", "ALUNO TESTE")
+        .order("data_matricula", { ascending: true });
       if (error) throw error;
       setStudents(data || []);
     } catch (error: any) {
@@ -109,7 +110,7 @@ export default function DashSaudePFMPage() {
 
       let query = supabase
         .from("student_health_records")
-        .select("*, students(nome_completo, nome_guerra, graduacao, matricula_pfm, blood_type, gender, has_health_alert, health_alert_description, data_matricula)")
+        .select("*, students(id, nome_completo, nome_guerra, graduacao, matricula_pfm, blood_type, gender, has_health_alert, health_alert_description, data_matricula)")
         .gte("created_at", start)
         .lte("created_at", end);
 
@@ -155,14 +156,30 @@ export default function DashSaudePFMPage() {
   const nextMonth = () => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   const prevMonth = () => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
 
-  const filteredRecords = healthRecords.filter(record => 
-    record.students?.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.students?.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => {
-    const dateA = new Date(a.students?.data_matricula || 0).getTime();
-    const dateB = new Date(b.students?.data_matricula || 0).getTime();
-    return dateA - dateB;
-  });
+  const filteredRecords = useMemo(() => {
+    return healthRecords.filter(record =>
+      record.students?.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.students?.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => {
+      const dateA = new Date(a.students?.data_matricula || 0).getTime();
+      const dateB = new Date(b.students?.data_matricula || 0).getTime();
+      return dateA - dateB;
+    });
+  }, [healthRecords, searchTerm]);
+
+  const groupedRecords = useMemo(() => {
+    const groups: { [key: string]: any } = {};
+    filteredRecords.forEach(record => {
+      if (!groups[record.student_id]) {
+        groups[record.student_id] = {
+          student: record.students,
+          records: []
+        };
+      }
+      groups[record.student_id].records.push(record);
+    });
+    return Object.values(groups);
+  }, [filteredRecords]);
 
   const getIMCCategory = (imc: number) => {
     if (imc < 18.5) return { label: "Abaixo do peso", color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" };
@@ -210,18 +227,18 @@ export default function DashSaudePFMPage() {
           </div>
         </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/saude-pfm/ranking">
-              <Button className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-white font-black text-xs uppercase tracking-widest px-6 rounded-xl border flex items-center gap-2 h-11">
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                Ranking TAF
-              </Button>
-            </Link>
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/saude-pfm/ranking">
+            <Button className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-white font-black text-xs uppercase tracking-widest px-6 rounded-xl border flex items-center gap-2 h-11">
+              <Trophy className="w-4 h-4 text-yellow-500" />
+              Ranking TAF
+            </Button>
+          </Link>
+          <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
             <Button onClick={prevMonth} variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-zinc-500 hover:text-white">
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <div className="px-4 text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+            <div className="px-4 text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 text-center min-w-[140px]">
               <Calendar className="w-3.5 h-3.5 text-rose-500" />
               {format(selectedDate, "MMMM yyyy", { locale: ptBR })}
             </div>
@@ -248,34 +265,37 @@ export default function DashSaudePFMPage() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard 
-          label="Total de Avaliações" 
-          value={healthRecords.length.toString()} 
-          icon={ClipboardList} 
-          color="text-rose-500" 
+        <StatCard
+          label="Total de Avaliações"
+          value={healthRecords.length.toString()}
+          icon={ClipboardList}
+          color="text-rose-500"
           bg="bg-rose-500/10"
         />
-        <StatCard 
-          label="Alertas Ativos" 
-          value={healthRecords.filter(r => r.has_alert).length.toString()} 
-          icon={AlertTriangle} 
-          color="text-amber-500" 
+        <StatCard
+          label="Alertas Ativos"
+          value={healthRecords.filter(r => r.has_alert).length.toString()}
+          icon={AlertTriangle}
+          color="text-amber-500"
           bg="bg-amber-500/10"
         />
-        <StatCard 
-          label="Média IMC" 
-          value={healthRecords.length > 0 
-            ? (healthRecords.reduce((acc, r) => acc + (r.weight / (r.height * r.height)), 0) / healthRecords.length).toFixed(1)
-            : "0.0"} 
-          icon={Activity} 
-          color="text-blue-500" 
+        <StatCard
+          label="Média IMC"
+          value={(() => {
+            const valid = healthRecords.filter(r => r.weight && r.height && r.height > 0);
+            return valid.length > 0
+              ? (valid.reduce((acc, r) => acc + (r.weight / (r.height * r.height)), 0) / valid.length).toFixed(1)
+              : "0.0";
+          })()}
+          icon={Activity}
+          color="text-blue-500"
           bg="bg-blue-500/10"
         />
-        <StatCard 
-          label="Alunos Avaliados" 
-          value={new Set(healthRecords.map(r => r.student_id)).size.toString()} 
-          icon={User} 
-          color="text-emerald-500" 
+        <StatCard
+          label="Alunos Avaliados"
+          value={new Set(healthRecords.map(r => r.student_id)).size.toString()}
+          icon={User}
+          color="text-emerald-500"
           bg="bg-emerald-500/10"
         />
       </div>
@@ -289,8 +309,8 @@ export default function DashSaudePFMPage() {
           </h2>
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-            <Input 
-              placeholder="Buscar no dossiê..." 
+            <Input
+              placeholder="Buscar no dossiê..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 bg-zinc-900 border-zinc-800 text-white h-10 rounded-xl text-xs"
@@ -303,7 +323,7 @@ export default function DashSaudePFMPage() {
             <Loader2 className="w-10 h-10 animate-spin text-rose-500 mb-4" />
             <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest">Carregando dados de saúde...</p>
           </div>
-        ) : filteredRecords.length === 0 ? (
+        ) : groupedRecords.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-zinc-900/50 border border-zinc-800 rounded-3xl border-dashed text-center">
             <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center mb-4">
               <Filter className="w-8 h-8 text-zinc-600" />
@@ -314,18 +334,18 @@ export default function DashSaudePFMPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {filteredRecords.map((record) => (
+              {groupedRecords.map((group: any) => (
                 <motion.div
-                  key={record.id}
+                  key={group.student.id}
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <DossierCard 
-                    record={record} 
-                    onView={() => setViewingRecord(record)}
-                    onDelete={() => handleDelete(record.id)}
+                  <DossierCard
+                    group={group}
+                    onView={(record: any) => setViewingRecord(record)}
+                    onDelete={(id: string) => handleDelete(id)}
                     getIMCCategory={getIMCCategory}
                   />
                 </motion.div>
@@ -364,7 +384,7 @@ export default function DashSaudePFMPage() {
                   </div>
                 </div>
               </DialogHeader>
-              
+
               <div className="p-8 overflow-y-auto max-h-[70vh] custom-scrollbar space-y-8">
                 {/* Physical Data */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -444,81 +464,88 @@ function StatCard({ label, value, icon: Icon, color, bg }: any) {
   );
 }
 
-function DossierCard({ record, onView, onDelete, getIMCCategory }: any) {
-  const imc = record.weight / (record.height * record.height);
+function DossierCard({ group, onView, onDelete, getIMCCategory }: any) {
+  const { student, records } = group;
+  // Use most recent record for summary
+  const latestRecord = records[0];
+  const imc = latestRecord.weight && latestRecord.height ? latestRecord.weight / (latestRecord.height * latestRecord.height) : 0;
   const imcCat = getIMCCategory(imc);
 
   return (
     <Card className="bg-zinc-900/50 border-zinc-800 rounded-[2rem] overflow-hidden group hover:border-rose-500/30 transition-all hover:bg-zinc-900">
       <div className="p-6 space-y-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center border border-zinc-700">
-              <User className="w-6 h-6 text-zinc-500" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-white uppercase tracking-tighter leading-none">{record.students?.nome_guerra || record.students?.nome_completo?.split(' ')[0]}</h3>
-              <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Mat: {record.students?.matricula_pfm || "---"}</p>
-            </div>
+        <div className="flex items-start justify-between border-b border-zinc-800 pb-4">
+          <div className="flex-1">
+            <p className="text-[10px] text-rose-500 font-black uppercase tracking-[0.2em] leading-none mb-1">
+              MAT: {student.matricula_pfm || "---"}
+            </p>
+            <h3 className="text-xl font-black text-white uppercase tracking-tighter leading-tight">
+              {student.nome_guerra || student.nome_completo?.split(' ')[0]}
+            </h3>
           </div>
-          <Badge className={cn("text-[8px] font-black uppercase tracking-tighter px-2", record.has_alert ? "bg-rose-500/20 text-rose-500" : "bg-emerald-500/20 text-emerald-500")}>
-            {record.has_alert ? "ALERTA" : "NORMAL"}
+          <Badge className={cn("text-[8px] font-black uppercase tracking-tighter px-2", student.has_health_alert ? "bg-rose-500/20 text-rose-500" : "bg-emerald-500/20 text-emerald-500")}>
+            {student.has_health_alert ? "ALERTA" : "NORMAL"}
           </Badge>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
-            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Peso/Alt</p>
-            <p className="text-xs font-black text-white tracking-tight">{record.weight}kg / {record.height}m</p>
+        <div className="bg-zinc-950/30 rounded-2xl border border-zinc-800/50 overflow-hidden">
+          <div className="px-4 py-2 bg-zinc-900/50 border-b border-zinc-800/50 flex items-center justify-between">
+            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Avaliações no Mês</span>
+            <Badge className="bg-zinc-800 text-zinc-400 text-[8px] font-black">{records.length}</Badge>
           </div>
-          <div className={cn("p-3 rounded-2xl border", imcCat.bg, imcCat.border)}>
-            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">IMC</p>
-            <p className={cn("text-xs font-black tracking-tight", imcCat.color)}>{imc.toFixed(1)} - {imcCat.label}</p>
-          </div>
-        </div>
+          <div className="divide-y divide-zinc-800/30 max-h-[300px] overflow-y-auto custom-scrollbar">
+            {records.map((r: any) => {
+              const rImc = r.weight && r.height ? r.weight / (r.height * r.height) : 0;
+              const rImcCat = getIMCCategory(rImc);
 
-        <div className="bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 space-y-2">
-          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-            <Award className="w-3 h-3 text-yellow-500" /> TAF MENSAL
-          </p>
-          <div className="flex justify-between text-[10px] font-bold text-zinc-400">
-            <span>Corr: {record.taf_run_12min || 0}m</span>
-            <span>Pol: {record.taf_jumping_jacks || 0}</span>
-            <span>Flex: {record.taf_push_ups || 0}</span>
-            <span>Abd: {record.taf_sit_ups || 0}</span>
-          </div>
-        </div>
+              return (
+                <div key={r.id} className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3 text-rose-500" />
+                      Ref: {format(new Date(r.created_at), "dd/MM/yyyy")}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button onClick={() => onView(r)} variant="ghost" size="icon" className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
+                      <Link href={`/saude-pfm?student=${r.student_id}&edit=${r.id}`}><Button variant="ghost" size="icon" className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-500"><Pencil className="w-3.5 h-3.5" /></Button></Link>
+                      <Button onClick={() => onDelete(r.id)} variant="ghost" size="icon" className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </div>
 
-        <div className="flex items-center gap-2 pt-2">
-          <Button 
-            onClick={onView} 
-            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-black text-[10px] uppercase tracking-widest h-10 rounded-xl border border-zinc-700/50"
-          >
-            <Eye className="w-3.5 h-3.5 mr-2 text-rose-500" /> Ver Dossiê
-          </Button>
-          <Link href={`/saude-pfm?student=${record.student_id}&edit=${record.id}`} className="flex-none">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-500 border border-zinc-700/50"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-          </Link>
-          <Button 
-            onClick={onDelete} 
-            variant="ghost" 
-            size="icon" 
-            className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-500 border border-zinc-700/50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800">
+                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">Peso/Alt</p>
+                      <p className="text-[10px] font-black text-white tracking-tight">{r.weight}kg / {r.height}m</p>
+                    </div>
+                    <div className={cn("p-2 rounded-xl border", rImcCat.bg, rImcCat.border)}>
+                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">IMC</p>
+                      <p className={cn("text-[10px] font-black tracking-tight", rImcCat.color)}>{rImc.toFixed(1)} - {rImcCat.label}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/50 space-y-1.5">
+                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Award className="w-2.5 h-2.5 text-yellow-500" /> TAF
+                    </p>
+                    <div className="flex justify-between text-[9px] font-bold text-zinc-400">
+                      <span>Corr: {r.taf_run_12min || 0}m</span>
+                      <span>Pol: {r.taf_jumping_jacks || 0}</span>
+                      <span>Flex: {r.taf_push_ups || 0}</span>
+                      <span>Abd: {r.taf_sit_ups || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-      
+
       <div className="px-6 py-3 bg-zinc-950/50 border-t border-zinc-800/50 flex items-center justify-between">
-        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Avaliado em:</span>
-        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{format(new Date(record.created_at), "dd/MM/yyyy")}</span>
+        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Alcunha:</span>
+        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">
+          {student.nome_guerra || "N/I"}
+        </span>
       </div>
     </Card>
   );

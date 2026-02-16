@@ -121,7 +121,7 @@ export default function SaudePFMPage() {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      let query = supabase.from("students").select("*, turmas(nome)").eq("status", "ativo");
+      let query = supabase.from("students").select("*, turmas(nome)").eq("status", "ativo").neq("nome_completo", "ALUNO TESTE");
 
       if (isGuardian) {
         query = query.eq("responsavel_cpf", profile?.cpf);
@@ -129,7 +129,7 @@ export default function SaudePFMPage() {
         query = query.eq("id", profile?.id);
       }
 
-      const { data, error } = await query.order("nome_completo", { ascending: true });
+      const { data, error } = await query.order("data_matricula", { ascending: true });
       if (error) throw error;
       setStudents(data || []);
 
@@ -405,27 +405,17 @@ export default function SaudePFMPage() {
                               className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500 rounded-r-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"
                             />
                           )}
-                          <div className="relative shrink-0">
-                            <div className={cn(
-                              "w-11 h-11 rounded-2xl bg-zinc-950 flex items-center justify-center border-2 transition-all duration-300 group-hover:scale-105",
-                              selectedStudent?.id === student.id ? "border-rose-500/30 bg-rose-500/5" : "border-zinc-800"
-                            )}>
-                              <span className={cn(
-                                "font-black text-sm",
-                                selectedStudent?.id === student.id ? "text-rose-500" : "text-zinc-500"
-                              )}>
-                                {student.nome_guerra?.charAt(0) || student.nome_completo?.charAt(0)}
-                              </span>
-                            </div>
-                            {student.has_health_alert && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-lg border-2 border-zinc-950 flex items-center justify-center shadow-lg">
-                                <AlertTriangle className="w-2.5 h-2.5 text-white" />
-                              </div>
-                            )}
-                          </div>
                           <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[9px] bg-rose-500/10 text-rose-500 font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-rose-500/20">
+                                {student.matricula_pfm || "N/I"}
+                              </span>
+                              {student.has_health_alert && (
+                                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" title="Alerta de Saúde" />
+                              )}
+                            </div>
                             <p className={cn(
-                              "text-xs font-black truncate uppercase tracking-tight transition-colors",
+                              "text-sm font-black truncate uppercase tracking-tight transition-colors",
                               selectedStudent?.id === student.id ? "text-white" : "text-zinc-400 group-hover:text-white"
                             )}>
                               {student.nome_guerra || student.nome_completo?.split(' ')[0]}
