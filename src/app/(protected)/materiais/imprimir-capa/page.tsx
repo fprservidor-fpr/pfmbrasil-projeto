@@ -5,8 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, Download } from "lucide-react";
 import { PrintableCover } from "@/components/printable-cover";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface Student {
   id: string;
@@ -24,7 +26,18 @@ function PrintCoverContent() {
   const componentRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [student, setStudent] = useState<Student | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,6 +70,38 @@ function PrintCoverContent() {
     contentRef: componentRef,
     documentTitle: `Capa_Caderno_${student?.nome_guerra || "PFM"}`,
   });
+
+  const handleDownloadPDF = async () => {
+    if (!componentRef.current) return;
+
+    try {
+      setDownloading(true);
+      const canvas = await html2canvas(componentRef.current, {
+        scale: 2, // Melhor qualidade
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Capa_Caderno_${student?.nome_guerra || "PFM"}.pdf`);
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -91,21 +136,31 @@ function PrintCoverContent() {
             Visualização de Impressão (A4)
           </span>
           <Button
-            onClick={() => handlePrint()}
+            onClick={() => isMobile ? handleDownloadPDF() : handlePrint()}
+            disabled={downloading}
             className="bg-amber-500 hover:bg-amber-600 text-white gap-2 shadow-lg h-10 px-4 md:px-6"
           >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir</span>
-            <span className="hidden md:inline">(Ctrl+P)</span>
+            {downloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isMobile ? (
+              <Download className="w-4 h-4" />
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+            <span>{isMobile ? "Baixar PDF" : "Imprimir"}</span>
+            {!isMobile && <span className="hidden md:inline">(Ctrl+P)</span>}
           </Button>
         </div>
       </div>
 
       {/* Mobile orientation hint */}
       <div className="md:hidden flex justify-center mb-4 px-4 print:hidden">
-        <div className="bg-amber-50 border border-amber-100 p-2 rounded-lg text-[11px] text-amber-700 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg>
-          Para melhor visualização, você pode deslizar para os lados ou usar modo paisagem.
+        <div className="bg-amber-50 border border-amber-100 p-2 rounded-lg text-[11px] text-amber-700 flex flex-col items-center gap-1 text-center">
+          <div className="flex items-center gap-2">
+            <Download className="w-3 h-3" />
+            <span className="font-bold">Versão Mobile: Download Direto</span>
+          </div>
+          <p>O arquivo será baixado como PDF para garantir que a capa não fique cortada ou desorganizada.</p>
         </div>
       </div>
 
