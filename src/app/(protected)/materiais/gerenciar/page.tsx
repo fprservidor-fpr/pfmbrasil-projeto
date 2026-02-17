@@ -59,7 +59,7 @@ export default function GerenciarMateriaisPage() {
         turma_id: "all"
     });
 
-    const canManage = ["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor"].includes(profile?.role || "");
+    const canManage = ["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor", "coordenador"].includes(profile?.role || "");
 
     useEffect(() => {
         if (profile && !canManage) {
@@ -264,8 +264,8 @@ export default function GerenciarMateriaisPage() {
                     {/* List Materials */}
                     <div className="space-y-4">
                         <h3 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest ml-4">Últimos Publicados</h3>
-                        <div className="space-y-3">
-                            {materials.slice(0, 5).map(m => (
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                            {materials.map(m => (
                                 <div key={m.id} className="flex items-center justify-between p-4 bg-zinc-900/40 rounded-2xl border border-white/5 hover:border-white/10 transition-all group">
                                     <div className="flex items-center gap-4">
                                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", m.section === "Material PFM" ? "bg-yellow-400/10 text-yellow-500" : "bg-blue-400/10 text-blue-500")}>
@@ -329,8 +329,8 @@ export default function GerenciarMateriaisPage() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl">
-                                            <SelectItem value="missao">Missão Tática</SelectItem>
-                                            <SelectItem value="atividade">Atividade Extra</SelectItem>
+                                            <SelectItem value="missao">Missão</SelectItem>
+                                            <SelectItem value="atividade">Atividade</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -385,8 +385,8 @@ export default function GerenciarMateriaisPage() {
                     {/* List Missoes */}
                     <div className="space-y-4">
                         <h3 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest ml-4">Histórico de Missões</h3>
-                        <div className="space-y-3">
-                            {missoes.slice(0, 5).map(m => (
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                            {missoes.map(m => (
                                 <div key={m.id} className="flex items-center justify-between p-4 bg-zinc-900/40 rounded-2xl border border-white/5 hover:border-white/10 transition-all group">
                                     <div className="flex items-center gap-4">
                                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", m.tipo === "missao" ? "bg-red-400/10 text-red-500" : "bg-blue-400/10 text-blue-500")}>

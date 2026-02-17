@@ -96,7 +96,7 @@ export default function MateriaisPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const canManage = ["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor"].includes(profile?.role || "");
+  const canManage = ["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor", "coordenador"].includes(profile?.role || "");
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -419,7 +419,7 @@ export default function MateriaisPage() {
                           "px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-[0.2em]",
                           missao.tipo === 'missao' ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
                         )}>
-                          {missao.tipo === 'missao' ? 'Missão Tática' : 'Atividade Extra'}
+                          {missao.tipo === 'missao' ? 'Missão' : 'Atividade'}
                         </Badge>
                       </div>
 
