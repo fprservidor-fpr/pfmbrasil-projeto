@@ -274,39 +274,67 @@ export default function GerenciarMateriaisPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">Seção</label>
-                                    <Select value={newMaterial.section} onValueChange={val => setNewMaterial({ ...newMaterial, section: val })}>
-                                        <SelectTrigger className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl">
-                                            <SelectItem value="Material PFM">Manual PFM</SelectItem>
-                                            <SelectItem value="Devocional | Biblia">Devocional</SelectItem>
-                                            <SelectItem value="Atividades">Atividades</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4 italic">
-                                        URL do Arquivo ou Upload
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">Seção do Portal</label>
+                                <Select value={newMaterial.section} onValueChange={val => setNewMaterial({ ...newMaterial, section: val })}>
+                                    <SelectTrigger className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl">
+                                        <SelectItem value="Material PFM">Manual PFM</SelectItem>
+                                        <SelectItem value="Devocional | Biblia">Devocional</SelectItem>
+                                        <SelectItem value="Atividades">Atividades</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4 italic flex items-center gap-2">
+                                        <Paperclip className="w-3 h-3" /> Origem do Conteúdo
                                     </label>
-                                    <div className="flex flex-col md:flex-row gap-3">
-                                        <div className="relative flex-1">
-                                            <Input
-                                                value={newMaterial.file_url}
-                                                onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
-                                                className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6 focus:ring-yellow-500/20 pr-12"
-                                                placeholder="https://..."
-                                            />
-                                            {newMaterial.file_url && (
-                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
-                                                    <ShieldCheck className="w-5 h-5" />
+
+                                    <div className="grid grid-cols-1 gap-8">
+                                        {/* Option 1: URL */}
+                                        <div className="group/url space-y-3 p-6 rounded-[2rem] bg-zinc-950/20 border border-white/5 hover:border-yellow-500/20 transition-all">
+                                            <div className="flex items-center gap-3 ml-2">
+                                                <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-[10px] font-black text-black">1</div>
+                                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vincular Link Externo</p>
+                                            </div>
+                                            <div className="relative">
+                                                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within/url:text-yellow-500 transition-colors">
+                                                    <Tag className="w-5 h-5" />
                                                 </div>
-                                            )}
+                                                <Input
+                                                    value={newMaterial.file_url}
+                                                    onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
+                                                    className="bg-zinc-950/80 border-white/5 h-16 rounded-2xl text-white pl-14 pr-12 focus:ring-yellow-500/20 text-sm font-medium transition-all"
+                                                    placeholder="Cole o link aqui (Google Drive, Dropbox, site...)"
+                                                />
+                                                {newMaterial.file_url && (
+                                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-500 animate-in zoom-in">
+                                                        <ShieldCheck className="w-5 h-5" />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="relative">
+
+                                        {/* Separator */}
+                                        <div className="relative flex items-center justify-center">
+                                            <div className="absolute inset-0 flex items-center">
+                                                <div className="w-full border-t border-white/5"></div>
+                                            </div>
+                                            <div className="relative bg-zinc-900 px-6 text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] italic leading-none py-1 border border-white/5 rounded-full">
+                                                OU
+                                            </div>
+                                        </div>
+
+                                        {/* Option 2: Upload */}
+                                        <div className="group/upload space-y-3 p-6 rounded-[2rem] bg-zinc-950/20 border border-white/5 hover:border-yellow-500/20 transition-all">
+                                            <div className="flex items-center gap-3 ml-2">
+                                                <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-[10px] font-black text-black">2</div>
+                                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Carregar Arquivo Local</p>
+                                            </div>
                                             <input
                                                 type="file"
                                                 id="file-upload"
@@ -317,22 +345,30 @@ export default function GerenciarMateriaisPage() {
                                             <label
                                                 htmlFor="file-upload"
                                                 className={cn(
-                                                    "flex items-center justify-center gap-3 px-6 h-14 rounded-2xl border border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all cursor-pointer text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-yellow-400 whitespace-nowrap min-w-[180px]",
-                                                    uploading && "opacity-50 pointer-events-none"
+                                                    "flex flex-col items-center justify-center gap-4 p-8 rounded-[1.5rem] border-2 border-dashed transition-all cursor-pointer group/btn relative overflow-hidden",
+                                                    uploading
+                                                        ? "border-yellow-500/20 bg-yellow-500/5 opacity-50 pointer-events-none"
+                                                        : "border-white/5 bg-zinc-950/40 hover:border-yellow-500/30 hover:bg-yellow-500/5 hover:shadow-2xl hover:shadow-yellow-500/5"
                                                 )}
                                             >
-                                                {uploading ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
-                                                ) : (
-                                                    <Upload className="w-4 h-4" />
-                                                )}
-                                                {uploading ? "Enviando..." : "Subir Arquivo"}
+                                                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover/btn:scale-110 group-hover/btn:bg-yellow-500 group-hover/btn:text-black transition-all">
+                                                    {uploading ? (
+                                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                                    ) : (
+                                                        <Upload className="w-6 h-6" />
+                                                    )}
+                                                </div>
+                                                <div className="text-center">
+                                                    <span className="block text-xs font-black uppercase tracking-widest text-zinc-400 group-hover/btn:text-white transition-colors">
+                                                        {uploading ? "Processando..." : "Subir Documento"}
+                                                    </span>
+                                                    <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-tighter group-hover/btn:text-zinc-500 transition-colors mt-1 block">
+                                                        PDF, IMG, DOC e MP4 (Max 10MB)
+                                                    </span>
+                                                </div>
                                             </label>
                                         </div>
                                     </div>
-                                    <p className="text-[9px] text-zinc-600 ml-4 font-medium italic">
-                                        * Formatos aceitos: PDF, Imagens, Documentos e Vídeos (Max 10MB)
-                                    </p>
                                 </div>
                             </div>
 
