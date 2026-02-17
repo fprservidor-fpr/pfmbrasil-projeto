@@ -16,7 +16,9 @@ import {
     ShieldCheck,
     Sparkles,
     Save,
-    Tag
+    Tag,
+    Upload,
+    Paperclip
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +43,7 @@ export default function GerenciarMateriaisPage() {
     const [materials, setMaterials] = useState<any[]>([]);
     const [missoes, setMissoes] = useState<any[]>([]);
     const [turmas, setTurmas] = useState<any[]>([]);
+    const [uploading, setUploading] = useState(false);
 
     // Form states
     const [newMaterial, setNewMaterial] = useState({
@@ -68,6 +71,51 @@ export default function GerenciarMateriaisPage() {
         }
         fetchData();
     }, [profile]);
+
+    async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validar tamanho (ex: 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error("Arquivo muito grande. Máximo 10MB.");
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+            const filePath = `uploads/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('materials')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                // Se o erro for que o bucket não existe, avisar de forma amigável
+                if (uploadError.message.includes("bucket not found")) {
+                    throw new Error("O bucket 'materials' não foi configurado no Supabase.");
+                }
+                throw uploadError;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('materials')
+                .getPublicUrl(filePath);
+
+            setNewMaterial(prev => ({ ...prev, file_url: publicUrl }));
+            toast.success("Arquivo carregado!");
+        } catch (error: any) {
+            console.error("Erro no upload:", error);
+            toast.error("Erro no upload: " + error.message);
+        } finally {
+            setUploading(false);
+        }
+    }
 
     async function fetchData() {
         try {
@@ -236,17 +284,55 @@ export default function GerenciarMateriaisPage() {
                                         <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl">
                                             <SelectItem value="Material PFM">Manual PFM</SelectItem>
                                             <SelectItem value="Devocional | Biblia">Devocional</SelectItem>
+                                            <SelectItem value="Atividades">Atividades</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">URL do Arquivo</label>
-                                    <Input
-                                        value={newMaterial.file_url}
-                                        onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
-                                        className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6 focus:ring-yellow-500/20"
-                                        placeholder="https://..."
-                                    />
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4 italic">
+                                        URL do Arquivo ou Upload
+                                    </label>
+                                    <div className="flex flex-col md:flex-row gap-3">
+                                        <div className="relative flex-1">
+                                            <Input
+                                                value={newMaterial.file_url}
+                                                onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
+                                                className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6 focus:ring-yellow-500/20 pr-12"
+                                                placeholder="https://..."
+                                            />
+                                            {newMaterial.file_url && (
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                                    <ShieldCheck className="w-5 h-5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                id="file-upload"
+                                                className="hidden"
+                                                onChange={handleFileUpload}
+                                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4"
+                                            />
+                                            <label
+                                                htmlFor="file-upload"
+                                                className={cn(
+                                                    "flex items-center justify-center gap-3 px-6 h-14 rounded-2xl border border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all cursor-pointer text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-yellow-400 whitespace-nowrap min-w-[180px]",
+                                                    uploading && "opacity-50 pointer-events-none"
+                                                )}
+                                            >
+                                                {uploading ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
+                                                ) : (
+                                                    <Upload className="w-4 h-4" />
+                                                )}
+                                                {uploading ? "Enviando..." : "Subir Arquivo"}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-zinc-600 ml-4 font-medium italic">
+                                        * Formatos aceitos: PDF, Imagens, Documentos e Vídeos (Max 10MB)
+                                    </p>
                                 </div>
                             </div>
 
@@ -268,7 +354,12 @@ export default function GerenciarMateriaisPage() {
                             {materials.map(m => (
                                 <div key={m.id} className="flex items-center justify-between p-4 bg-zinc-900/40 rounded-2xl border border-white/5 hover:border-white/10 transition-all group">
                                     <div className="flex items-center gap-4">
-                                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", m.section === "Material PFM" ? "bg-yellow-400/10 text-yellow-500" : "bg-blue-400/10 text-blue-500")}>
+                                        <div className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center",
+                                            m.section === "Material PFM" ? "bg-yellow-400/10 text-yellow-500" :
+                                                m.section === "Atividades" ? "bg-violet-400/10 text-violet-500" :
+                                                    "bg-blue-400/10 text-blue-500"
+                                        )}>
                                             <FileText className="w-5 h-5" />
                                         </div>
                                         <div>

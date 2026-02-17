@@ -194,6 +194,7 @@ export default function MateriaisPage() {
 
     if (activeTab === "pfm") return matchesSearch && m.section === "Material PFM";
     if (activeTab === "biblia") return matchesSearch && m.section === "Devocional | Biblia";
+    if (activeTab === "missoes") return matchesSearch && m.section === "Atividades";
     return false;
   });
 
@@ -393,93 +394,141 @@ export default function MateriaisPage() {
               />
             </div>
 
-            {filteredMissoes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {filteredMissoes.map((missao, idx) => (
-                  <motion.div
-                    key={missao.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="group bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-10 hover:border-violet-500/30 transition-all shadow-2xl relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                      <Target className="w-48 h-48 text-white" />
-                    </div>
-
-                    <div className="relative z-10">
-                      <div className="flex items-start justify-between mb-8">
-                        <div className={cn(
-                          "w-16 h-16 rounded-3xl flex items-center justify-center shadow-xl",
-                          missao.tipo === 'missao' ? "bg-red-500 shadow-red-500/20" : "bg-blue-500 shadow-blue-500/20"
-                        )}>
-                          <Target className="w-8 h-8 text-white" />
+            {(filteredMissoes.length > 0 || filteredMaterials.length > 0) ? (
+              <div className="space-y-12">
+                {/* Missions List */}
+                {filteredMissoes.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {filteredMissoes.map((missao, idx) => (
+                      <motion.div
+                        key={missao.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="group bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-10 hover:border-violet-500/30 transition-all shadow-2xl relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                          <Target className="w-48 h-48 text-white" />
                         </div>
-                        <Badge className={cn(
-                          "px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-[0.2em]",
-                          missao.tipo === 'missao' ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                        )}>
-                          {missao.tipo === 'missao' ? 'Missão' : 'Atividade'}
-                        </Badge>
-                      </div>
 
-                      <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none group-hover:text-violet-400 transition-colors">
-                        {missao.titulo}
-                      </h3>
-
-                      <p className="text-zinc-500 text-sm font-medium mb-12 line-clamp-2 leading-relaxed">
-                        {missao.descricao}
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-6 mb-12">
-                        <div className="bg-zinc-950/50 p-6 rounded-3xl border border-white/5 backdrop-blur-md">
-                          <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
-                            <Calendar className="w-3 h-3" />
-                            Início
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-8">
+                            <div className={cn(
+                              "w-16 h-16 rounded-3xl flex items-center justify-center shadow-xl",
+                              missao.tipo === 'missao' ? "bg-red-500 shadow-red-500/20" : "bg-blue-500 shadow-blue-500/20"
+                            )}>
+                              <Target className="w-8 h-8 text-white" />
+                            </div>
+                            <Badge className={cn(
+                              "px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-[0.2em]",
+                              missao.tipo === 'missao' ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                            )}>
+                              {missao.tipo === 'missao' ? 'Missão' : 'Atividade'}
+                            </Badge>
                           </div>
-                          <p className="text-white font-black text-lg">{format(parseISO(missao.data_lancamento), "dd/MM")}</p>
-                        </div>
-                        <div className="bg-zinc-950/50 p-6 rounded-3xl border border-red-500/10 backdrop-blur-md">
-                          <div className="flex items-center gap-2 text-red-400/70 text-[10px] font-black uppercase tracking-widest mb-2">
-                            <Clock className="w-3 h-3" />
-                            Prazo
-                          </div>
-                          <p className="text-red-400 font-black text-lg">{format(parseISO(missao.data_entrega), "dd/MM")}</p>
-                        </div>
-                      </div>
 
-                      {missao.missoes_materiais && missao.missoes_materiais.length > 0 && (
-                        <div className="space-y-4 mb-10">
-                          <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
-                            <FileText className="w-3 h-3" /> Materiais de Apoio
+                          <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none group-hover:text-violet-400 transition-colors">
+                            {missao.titulo}
+                          </h3>
+
+                          <p className="text-zinc-500 text-sm font-medium mb-12 line-clamp-2 leading-relaxed">
+                            {missao.descricao}
                           </p>
-                          {missao.missoes_materiais.map(({ study_materials: m }) => (
-                            <Link key={m.id} href={m.file_url} target="_blank" className="block">
-                              <div className="p-5 bg-zinc-800/30 rounded-2xl border border-white/5 flex items-center justify-between hover:bg-zinc-800/50 transition-colors group/file">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-violet-400/10 flex items-center justify-center text-violet-400 group-hover/file:bg-violet-400 group-hover/file:text-black transition-all">
-                                    <FileText className="w-5 h-5" />
-                                  </div>
-                                  <span className="text-xs text-white font-black uppercase tracking-tight truncate max-w-[150px]">{m.title}</span>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-zinc-600 group-hover/file:text-white transition-colors" />
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
 
-                      <div className="pt-8 border-t border-white/5 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">
-                          Operação Ativa
+                          <div className="grid grid-cols-2 gap-6 mb-12">
+                            <div className="bg-zinc-950/50 p-6 rounded-3xl border border-white/5 backdrop-blur-md">
+                              <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
+                                <Calendar className="w-3 h-3" />
+                                Início
+                              </div>
+                              <p className="text-white font-black text-lg">{format(parseISO(missao.data_lancamento), "dd/MM")}</p>
+                            </div>
+                            <div className="bg-zinc-950/50 p-6 rounded-3xl border border-red-500/10 backdrop-blur-md">
+                              <div className="flex items-center gap-2 text-red-400/70 text-[10px] font-black uppercase tracking-widest mb-2">
+                                <Clock className="w-3 h-3" />
+                                Prazo
+                              </div>
+                              <p className="text-red-400 font-black text-lg">{format(parseISO(missao.data_entrega), "dd/MM")}</p>
+                            </div>
+                          </div>
+
+                          {missao.missoes_materiais && missao.missoes_materiais.length > 0 && (
+                            <div className="space-y-4 mb-10">
+                              <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
+                                <FileText className="w-3 h-3" /> Materiais de Apoio
+                              </p>
+                              {missao.missoes_materiais.map(({ study_materials: m }) => (
+                                <Link key={m.id} href={m.file_url} target="_blank" className="block">
+                                  <div className="p-5 bg-zinc-800/30 rounded-2xl border border-white/5 flex items-center justify-between hover:bg-zinc-800/50 transition-colors group/file">
+                                    <div className="flex items-center gap-4">
+                                      <div className="w-10 h-10 rounded-xl bg-violet-400/10 flex items-center justify-center text-violet-400 group-hover/file:bg-violet-400 group-hover/file:text-black transition-all">
+                                        <FileText className="w-5 h-5" />
+                                      </div>
+                                      <span className="text-xs text-white font-black uppercase tracking-tight truncate max-w-[150px]">{m.title}</span>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-zinc-600 group-hover/file:text-white transition-colors" />
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="pt-8 border-t border-white/5 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">
+                              Operação Ativa
+                            </div>
+                            <Button variant="ghost" className="text-white font-black uppercase text-[10px] tracking-widest hover:text-violet-400 p-0 h-auto group">
+                              Detalhes da Missão <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                            </Button>
+                          </div>
                         </div>
-                        <Button variant="ghost" className="text-white font-black uppercase text-[10px] tracking-widest hover:text-violet-400 p-0 h-auto group">
-                          Detalhes da Missão <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Button>
-                      </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Activity Materials List */}
+                {filteredMaterials.length > 0 && (
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-3 ml-4">
+                      <FileText className="w-5 h-5 text-violet-400" />
+                      <h3 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">
+                        Documentos e <span className="text-violet-400">Atividades em PDF</span>
+                      </h3>
                     </div>
-                  </motion.div>
-                ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {filteredMaterials.map((material, idx) => (
+                        <motion.div
+                          key={material.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className="group bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 hover:border-violet-400/30 transition-all duration-500 shadow-2xl relative overflow-hidden"
+                        >
+                          <div className="flex flex-col h-full relative z-10">
+                            <div className="w-12 h-12 bg-violet-500/20 rounded-2xl flex items-center justify-center mb-6 text-violet-400 group-hover:bg-violet-500 group-hover:text-black transition-all">
+                              <FileText className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-lg font-black text-white mb-2 uppercase italic tracking-tighter leading-tight group-hover:text-violet-400 transition-colors">
+                              {material.title}
+                            </h3>
+                            <p className="text-zinc-500 text-xs font-medium line-clamp-2 mb-6 flex-1 leading-relaxed">
+                              {material.description || "Material de apoio para atividades táticas."}
+                            </p>
+                            <div className="flex gap-3">
+                              <Link href={material.file_url} target="_blank" className="flex-1">
+                                <Button size="sm" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-black uppercase tracking-widest text-[9px] h-10 rounded-xl transition-all">
+                                  <Download className="w-3 h-3 mr-2" />
+                                  Baixar
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-40 bg-zinc-900/20 rounded-[4rem] border border-white/5">
