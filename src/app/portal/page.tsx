@@ -71,7 +71,7 @@ export default function PortalPage() {
                 </div>
             </header>
 
-            <main className="relative z-10 flex-1 px-4 py-12">
+            <main className="relative z-10 flex-1 px-4 pt-12 pb-40">
                 <div className="max-w-7xl mx-auto">
                     {/* Access Instructions Section */}
                     <div className="text-center mb-16">
@@ -291,18 +291,6 @@ export default function PortalPage() {
                         </Link>
                     </motion.div>
 
-                    {/* Central Access Button - As requested in Image 4 */}
-                    <motion.div
-                        {...fadeInUp}
-                        className="flex justify-center items-center py-12"
-                    >
-                        <Link href="/login" className="w-full max-w-xl">
-                            <Button size="xl" className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest italic rounded-2xl shadow-[0_20px_50px_rgba(234,179,8,0.3)] border-b-4 border-yellow-700 active:border-b-0 h-24 text-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4">
-                                <LogIn className="w-8 h-8" />
-                                ACESSAR SISTEMA
-                            </Button>
-                        </Link>
-                    </motion.div>
 
                     {/* CTA Section - Moved from Home to Portal as requested in Image 2 */}
                     <section className="py-24 px-4 relative overflow-hidden text-center">
@@ -324,6 +312,33 @@ export default function PortalPage() {
             </main>
 
             <AveroFooter />
+
+            {/* Floating Fixed Access Button - Strategically positioned at the bottom */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] w-full max-w-lg px-4 pointer-events-none">
+                <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{
+                        delay: 0.8,
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 20
+                    }}
+                    className="pointer-events-auto"
+                >
+                    <Link href="/login" className="block">
+                        <Button
+                            size="xl"
+                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest italic rounded-3xl shadow-[0_20px_50px_rgba(234,179,8,0.4)] border-b-8 border-yellow-700 active:border-b-0 h-20 md:h-24 text-xl md:text-2xl transition-all hover:scale-[1.05] active:scale-[0.95] flex items-center justify-center gap-4 group relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-[-20deg]" />
+                            <LogIn className="w-8 h-8 group-hover:rotate-12 transition-transform" />
+                            <span>ACESSAR SISTEMA</span>
+                            <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                        </Button>
+                    </Link>
+                </motion.div>
+            </div>
         </div>
     );
 }
