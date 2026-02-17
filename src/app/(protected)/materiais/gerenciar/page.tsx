@@ -18,7 +18,9 @@ import {
     Save,
     Tag,
     Upload,
-    Paperclip
+    Paperclip,
+    X,
+    Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +61,8 @@ export default function GerenciarMateriaisPage() {
         tipo: "missao",
         data_lancamento: new Date().toISOString().split('T')[0],
         data_entrega: "",
-        turma_id: "all"
+        turma_id: "all",
+        material_ids: [] as string[]
     });
 
     const canManage = ["admin", "coord_geral", "coord_nucleo", "instructor", "instrutor", "coordenador"].includes(profile?.role || "");
@@ -168,12 +171,27 @@ export default function GerenciarMateriaisPage() {
 
         setSaving(true);
         try {
-            const { error } = await supabase.from("missoes_atividades").insert([{
-                ...newMissao,
+            const { data: missaoData, error } = await supabase.from("missoes_atividades").insert([{
+                titulo: newMissao.titulo,
+                descricao: newMissao.descricao,
+                tipo: newMissao.tipo,
+                data_lancamento: newMissao.data_lancamento,
+                data_entrega: newMissao.data_entrega,
                 turma_id: newMissao.turma_id === "all" ? null : newMissao.turma_id
-            }]);
+            }]).select().single();
 
             if (error) throw error;
+
+            // Vincular materiais
+            if (newMissao.material_ids.length > 0) {
+                const links = newMissao.material_ids.map(mid => ({
+                    missao_id: missaoData.id,
+                    material_id: mid
+                }));
+                const { error: linkError } = await supabase.from("missoes_materiais").insert(links);
+                if (linkError) throw linkError;
+            }
+
             toast.success("Operação/Missão criada!");
             setNewMissao({
                 titulo: "",
@@ -181,7 +199,8 @@ export default function GerenciarMateriaisPage() {
                 tipo: "missao",
                 data_lancamento: new Date().toISOString().split('T')[0],
                 data_entrega: "",
-                turma_id: "all"
+                turma_id: "all",
+                material_ids: []
             });
             fetchData();
         } catch (error: any) {
@@ -495,6 +514,71 @@ export default function GerenciarMateriaisPage() {
                                         onChange={e => setNewMissao({ ...newMissao, data_entrega: e.target.value })}
                                         className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6 border-red-500/10 focus:ring-red-500/20"
                                     />
+                                </div>
+                            </div>
+
+                            {/* Vincular Materiais */}
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <label className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-4 flex items-center gap-2">
+                                    <Paperclip className="w-3 h-3" /> Materiais de Apoio Vinculados
+                                </label>
+
+                                <div className="space-y-4">
+                                    <Select
+                                        onValueChange={val => {
+                                            if (!newMissao.material_ids.includes(val)) {
+                                                setNewMissao(prev => ({ ...prev, material_ids: [...prev.material_ids, val] }));
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger className="bg-zinc-950/50 border-white/5 h-14 rounded-2xl text-white px-6">
+                                            <SelectValue placeholder="Selecione materiais para apoiar esta missão..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-zinc-900 border-white/10 text-white rounded-2xl max-h-60 overflow-y-auto">
+                                            {materials.filter(m => !newMissao.material_ids.includes(m.id)).map(m => (
+                                                <SelectItem key={m.id} value={m.id}>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold">{m.title}</span>
+                                                        <span className="text-[10px] opacity-50 uppercase">{m.section}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                            {materials.filter(m => !newMissao.material_ids.includes(m.id)).length === 0 && (
+                                                <p className="p-4 text-center text-xs text-zinc-500">Nenhum material disponível</p>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Selected Materials Badges */}
+                                    <div className="flex flex-wrap gap-2">
+                                        <AnimatePresence>
+                                            {newMissao.material_ids.map(mid => {
+                                                const mat = materials.find(m => m.id === mid);
+                                                if (!mat) return null;
+                                                return (
+                                                    <motion.div
+                                                        key={mid}
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        exit={{ opacity: 0, scale: 0.8 }}
+                                                        className="bg-violet-500/10 border border-violet-500/20 text-violet-400 px-4 py-2 rounded-xl flex items-center gap-3"
+                                                    >
+                                                        <span className="text-[10px] font-black uppercase tracking-tight">{mat.title}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewMissao(prev => ({
+                                                                ...prev,
+                                                                material_ids: prev.material_ids.filter(id => id !== mid)
+                                                            }))}
+                                                            className="hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </AnimatePresence>
+                                    </div>
                                 </div>
                             </div>
 
