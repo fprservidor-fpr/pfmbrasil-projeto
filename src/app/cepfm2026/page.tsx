@@ -80,7 +80,20 @@ export default function CEPFMPage() {
     useEffect(() => {
         fetchInitialData();
         fetchActiveVotacao();
-    }, []);
+
+        // Load followed status from localStorage to "memorize" the device
+        const saved = localStorage.getItem(`followed_${activeVotacao?.id}`);
+        if (saved) {
+            setFollowedPartners(JSON.parse(saved));
+        }
+
+        // Refresh ranking every 30 seconds for "real-time" feel
+        const refreshInterval = setInterval(() => {
+            fetchInitialData();
+        }, 30000);
+
+        return () => clearInterval(refreshInterval);
+    }, [activeVotacao?.id]);
 
     useEffect(() => {
         if (selectedPatrulha) {
@@ -162,17 +175,26 @@ export default function CEPFMPage() {
         if (!error && data) setActiveVotacao(data);
     }
 
-    const handleFollow = (partner: string) => {
+    const handleFollow = (partner: { nome: string, link: string }) => {
+        // Open Instagram in a new tab
+        window.open(partner.link, '_blank');
+
         setIsFollowing(true);
         setTimeout(() => {
-            const newFollowed = [...followedPartners, partner];
+            const newFollowed = [...followedPartners, partner.nome];
             setFollowedPartners(newFollowed);
+
+            // Memorize on device
+            if (activeVotacao) {
+                localStorage.setItem(`followed_${activeVotacao.id}`, JSON.stringify(newFollowed));
+            }
+
             setIsFollowing(false);
             if (newFollowed.length === (activeVotacao?.parceiros_instagram?.length || 0)) {
                 toast.success("Todos os parceiros seguidos! Voto liberado.");
                 setVoteStep(2);
             }
-        }, 1500);
+        }, 1200);
     };
 
     const handleVote = async (patrulhaId: string) => {
@@ -203,21 +225,49 @@ export default function CEPFMPage() {
     };
 
     const handleShare = async () => {
-        // Logic to grant extra votes on share would normally happen server-side or via an update
+        const shareUrl = `${window.location.origin}${window.location.pathname}?ref=${activeVotacao?.id}`;
+
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: 'CEPFM 2026',
                     text: 'Apoie minha patrulha no CEPFM 2026!',
-                    url: window.location.href,
+                    url: shareUrl,
                 });
-                toast.success("Compartilhado! +3 votos extras ganhos.");
+
+                // If the user actually shared, we record extra votes
+                if (selectedPatrulha && activeVotacao) {
+                    const { error } = await supabase
+                        .from("cepfm_votos")
+                        .insert([{
+                            votacao_id: activeVotacao.id,
+                            patrulha_id: selectedPatrulha,
+                            votos_contabilizados: 3,
+                        }]);
+
+                    if (!error) {
+                        toast.success("Compartilhado! +3 votos extras contabilizados para sua patrulha.");
+                        fetchInitialData(); // Update UI
+                    }
+                }
             } catch (err) {
                 console.error(err);
             }
         } else {
-            navigator.clipboard.writeText(window.location.href);
-            toast.success("Link copiado! +3 votos extras ganhos.");
+            navigator.clipboard.writeText(shareUrl);
+            toast.success("Link copiado! +3 votos extras contabilizados.");
+
+            // Manual compensation if share API not available
+            if (selectedPatrulha && activeVotacao) {
+                await supabase
+                    .from("cepfm_votos")
+                    .insert([{
+                        votacao_id: activeVotacao.id,
+                        patrulha_id: selectedPatrulha,
+                        votos_contabilizados: 3,
+                    }]);
+                fetchInitialData();
+            }
         }
     };
 
@@ -229,10 +279,43 @@ export default function CEPFMPage() {
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white selection:bg-yellow-400/30 overflow-x-hidden">
+            {/* Active Votation CTA Banner */}
+            {activeVotacao && (
+                <motion.div
+                    initial={{ y: -100 }}
+                    animate={{ y: 0 }}
+                    className="fixed top-0 left-0 right-0 z-[100] bg-yellow-400 text-black py-3 px-6 shadow-2xl flex items-center justify-between"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="bg-black text-yellow-400 p-2 rounded-lg animate-pulse">
+                            <Vote className="w-5 h-5" />
+                        </div>
+                        <div className="hidden md:block">
+                            <h4 className="font-black uppercase italic text-sm leading-none">Votação em Andamento!</h4>
+                            <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">{activeVotacao.titulo}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3 bg-black/5 px-4 py-1 rounded-full">
+                            <Timer className="w-4 h-4" />
+                            <span className="font-mono font-black text-sm">{timeLeft}</span>
+                        </div>
+                        <Button
+                            onClick={() => setShowVoteDialog(true)}
+                            disabled={timeLeft === "ENCERRADO"}
+                            className="bg-black hover:bg-zinc-900 text-yellow-500 font-black uppercase text-[10px] tracking-widest h-9 px-6 rounded-full shadow-lg"
+                        >
+                            {timeLeft === "ENCERRADO" ? "Encerrado" : "Votar Agora!"}
+                        </Button>
+                    </div>
+                </motion.div>
+            )}
+
             <StarField />
 
             {/* Header / Hero */}
-            <header className="relative z-10 pt-20 pb-12 px-6 text-center">
+            <header className="relative z-10 pt-32 pb-12 px-6 text-center">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -301,8 +384,13 @@ export default function CEPFMPage() {
                                     </h3>
 
                                     <div className="bg-white/5 rounded-2xl px-6 py-3 border border-white/5 mb-6">
-                                        <span className="text-xs font-black uppercase tracking-widest text-zinc-400 block mb-1">Pontuação</span>
+                                        <span className="text-xs font-black uppercase tracking-widest text-zinc-400 block mb-1">Pontuação Total</span>
                                         <span className="text-3xl font-black italic">{patrulha.points}</span>
+                                        {(patrulha as any).campaign_votes > 0 && (
+                                            <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-yellow-400/80">
+                                                +{(patrulha as any).campaign_votes} Votos Ativos
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="text-zinc-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 group-hover:text-white transition-colors">
@@ -347,7 +435,6 @@ export default function CEPFMPage() {
                                 </span>
                             </motion.div>
                         ))}
-                        {/* Empty box for grid alignment if needed, or just leave as is */}
                     </div>
                 </section>
 
@@ -404,35 +491,80 @@ export default function CEPFMPage() {
                     <div className="lg:col-span-4">
                         <section className="sticky top-24">
                             {activeVotacao ? (
-                                <Card className="bg-yellow-500 border-none rounded-[2.5rem] shadow-2xl overflow-hidden group">
+                                <Card className={cn(
+                                    "border-none rounded-[2.5rem] shadow-2xl overflow-hidden group transition-all duration-700",
+                                    timeLeft === "ENCERRADO" ? "bg-zinc-900 border border-white/5" : "bg-yellow-500"
+                                )}>
                                     <CardHeader className="p-8 pb-0">
                                         <div className="flex items-center gap-3 mb-4">
-                                            <div className="bg-black text-yellow-500 p-2 rounded-xl">
-                                                <Vote className="w-5 h-5" />
+                                            <div className={cn(
+                                                "p-2 rounded-xl",
+                                                timeLeft === "ENCERRADO" ? "bg-white text-black" : "bg-black text-yellow-500"
+                                            )}>
+                                                {timeLeft === "ENCERRADO" ? <Trophy className="w-5 h-5" /> : <Vote className="w-5 h-5" />}
                                             </div>
-                                            <span className="text-black font-black uppercase text-xs tracking-widest">Votação Ativa</span>
+                                            <span className={cn(
+                                                "font-black uppercase text-xs tracking-widest",
+                                                timeLeft === "ENCERRADO" ? "text-white" : "text-black"
+                                            )}>
+                                                {timeLeft === "ENCERRADO" ? "Resultado Final" : "Votação Ativa"}
+                                            </span>
                                         </div>
-                                        <CardTitle className="text-3xl font-black text-black italic uppercase leading-none">{activeVotacao.titulo}</CardTitle>
-                                        <CardDescription className="text-black/70 font-bold">Ajude sua patrulha a ganhar pontos extras!</CardDescription>
+                                        <CardTitle className={cn(
+                                            "text-3xl font-black italic uppercase leading-none",
+                                            timeLeft === "ENCERRADO" ? "text-white" : "text-black"
+                                        )}>{activeVotacao.titulo}</CardTitle>
+                                        <CardDescription className={cn(
+                                            "font-bold",
+                                            timeLeft === "ENCERRADO" ? "text-zinc-400" : "text-black/70"
+                                        )}>
+                                            {timeLeft === "ENCERRADO" ? "Conheça a patrulha vencedora desta rodada!" : "Ajude sua patrulha a ganhar pontos extras!"}
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="p-8">
                                         <div className="space-y-6">
-                                            <div className="bg-black/10 rounded-2xl p-6 border border-black/5">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-black font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                                                        <Timer className="w-4 h-4" /> Encerra em:
-                                                    </span>
-                                                    <span className="text-black font-mono font-black text-xl">{timeLeft}</span>
+                                            {timeLeft === "ENCERRADO" ? (
+                                                <div className="space-y-6">
+                                                    <div className="p-6 bg-yellow-400/10 border border-yellow-400/20 rounded-3xl text-center">
+                                                        <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                                                        <h4 className="text-xl font-black uppercase text-white italic">Vencedora</h4>
+                                                        <p className="text-yellow-400 text-3xl font-black uppercase tracking-tight mt-1">{patrulhas[0]?.nome}</p>
+                                                    </div>
+                                                    <div className="flex flex-col gap-3">
+                                                        {patrulhas.map((p, i) => (
+                                                            <div key={p.id} className="flex items-center justify-between text-xs font-black uppercase tracking-widest px-4">
+                                                                <span className="text-zinc-500">{i + 1}º {p.nome}</span>
+                                                                <span className="text-white">{(p as any).campaign_votes} VOTOS</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <Progress value={65} className="h-2 bg-black/10" />
-                                            </div>
+                                            ) : (
+                                                <>
+                                                    <div className="bg-black/10 rounded-2xl p-6 border border-black/5">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-black font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                                                <Timer className="w-4 h-4" /> Encerra em:
+                                                            </span>
+                                                            <span className="text-black font-mono font-black text-xl">{timeLeft}</span>
+                                                        </div>
+                                                        <div className="h-2 bg-black/10 rounded-full overflow-hidden">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: "65%" }}
+                                                                className="h-full bg-black/40"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            <Button
-                                                onClick={() => setShowVoteDialog(true)}
-                                                className="w-full bg-black hover:bg-zinc-900 text-yellow-500 h-16 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl group-hover:scale-[1.02] transition-transform"
-                                            >
-                                                Votar Agora
-                                            </Button>
+                                                    <Button
+                                                        onClick={() => setShowVoteDialog(true)}
+                                                        className="w-full bg-black hover:bg-zinc-900 text-yellow-500 h-16 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl group-hover:scale-[1.02] transition-transform"
+                                                    >
+                                                        Votar Agora
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -470,37 +602,47 @@ export default function CEPFMPage() {
                                 className="space-y-6 pt-6"
                             >
                                 <DialogHeader>
-                                    <DialogTitle className="text-2xl font-black uppercase italic italic text-yellow-400">Validação de Voto</DialogTitle>
-                                    <DialogDescription className="text-zinc-400 font-medium">
+                                    <DialogTitle className="text-3xl font-black uppercase italic text-yellow-400 tracking-tighter">Validação Obrigatória</DialogTitle>
+                                    <DialogDescription className="text-zinc-400 font-medium text-sm">
                                         Para votar, siga nossos parceiros oficiais! Sua contribuição ajuda a manter o programa.
                                     </DialogDescription>
                                 </DialogHeader>
 
                                 <div className="space-y-3">
                                     {activeVotacao?.parceiros_instagram?.map((partner) => (
-                                        <div key={partner.nome} className="flex items-center justify-between p-4 bg-zinc-900 rounded-2xl border border-white/5">
+                                        <div key={partner.nome} className="flex items-center justify-between p-5 bg-zinc-900/50 rounded-2xl border border-white/5 group hover:border-yellow-400/30 transition-all">
                                             <div className="flex items-center gap-3">
-                                                <Instagram className="w-5 h-5 text-pink-500" />
-                                                <span className="font-bold">{partner.nome}</span>
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-pink-500 flex items-center justify-center shadow-lg">
+                                                    <Instagram className="w-5 h-5 text-white" />
+                                                </div>
+                                                <span className="font-black uppercase text-xs tracking-widest text-white/80 group-hover:text-white">{partner.nome}</span>
                                             </div>
                                             {followedPartners.includes(partner.nome) ? (
-                                                <div className="flex items-center gap-2 text-green-500 text-xs font-black uppercase">
-                                                    <CheckCircle2 className="w-4 h-4" /> Seguido
+                                                <div className="flex items-center gap-2 text-green-500 text-[10px] font-black uppercase bg-green-500/10 px-4 py-2 rounded-xl">
+                                                    <CheckCircle2 className="w-4 h-4" /> Validado
                                                 </div>
                                             ) : (
                                                 <Button
                                                     size="sm"
-                                                    variant="secondary"
                                                     disabled={isFollowing}
-                                                    onClick={() => handleFollow(partner.nome)}
-                                                    className="bg-white text-black font-black text-[10px] uppercase h-8 px-4"
+                                                    onClick={() => handleFollow(partner)}
+                                                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-black text-[10px] uppercase h-10 px-6 rounded-xl shadow-lg active:scale-95 transition-all"
                                                 >
-                                                    {isFollowing ? "Seguindo..." : "Seguir"}
+                                                    {isFollowing ? "Validando..." : "Seguir + Validar"}
                                                 </Button>
                                             )}
                                         </div>
                                     ))}
                                 </div>
+
+                                {followedPartners.length === (activeVotacao?.parceiros_instagram?.length || 0) && (
+                                    <Button
+                                        onClick={() => setVoteStep(2)}
+                                        className="w-full bg-white text-black font-black uppercase h-14 rounded-2xl tracking-widest text-xs"
+                                    >
+                                        Continuar para Votação
+                                    </Button>
+                                )}
                             </motion.div>
                         )}
 
