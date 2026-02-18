@@ -439,6 +439,11 @@ export default function ResponsavelInicioPage() {
             <h3 className="text-lg font-black uppercase tracking-widest relative z-10">Acesso Rápido</h3>
 
             <div className="grid grid-cols-1 gap-3 mt-8 relative z-10">
+              <Link href="/cepfm2026" className="flex items-center gap-4 p-4 rounded-2xl bg-yellow-500/10 hover:bg-yellow-500/20 transition-all group/link border border-yellow-500/20 text-yellow-500">
+                <Trophy className="w-5 h-5" />
+                <span className="text-xs font-black uppercase tracking-widest">CEPFM 2026</span>
+                <ChevronRight className="w-4 h-4 ml-auto group-hover/link:translate-x-1 transition-transform" />
+              </Link>
               <Link href="/responsavel/materiais" className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/link border border-white/10">
                 <BookOpen className="w-5 h-5" />
                 <span className="text-xs font-black uppercase tracking-widest">Materiais de Estudo</span>

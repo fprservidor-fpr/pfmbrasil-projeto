@@ -7,23 +7,24 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { 
-  User, 
-  CalendarCheck, 
-  Award, 
-  BookOpen, 
-  Calendar, 
-  Megaphone, 
-    LogOut,
-    Menu,
-    X,
-    ChevronRight,
-    ShieldCheck,
-    Users,
-    ChevronDown,
-    ClipboardEdit,
-    FileSignature
-  } from "lucide-react";
+import {
+  User,
+  CalendarCheck,
+  Award,
+  BookOpen,
+  Calendar,
+  Megaphone,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  ShieldCheck,
+  Users,
+  ChevronDown,
+  ClipboardEdit,
+  FileSignature,
+  Trophy
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -70,28 +71,35 @@ const responsibleNavItems = [
     description: "Agenda institucional",
     gradient: "from-rose-500 to-pink-600"
   },
-    {
-      title: "Denúncias",
-      href: "/responsavel/denuncias",
-      icon: Megaphone,
-      description: "Canal de ocorrências",
-      gradient: "from-slate-500 to-zinc-600"
-    },
-      {
-        title: "Alteração de Dados",
-        href: "/responsavel/solicitar-alteracao",
-        icon: ClipboardEdit,
-        description: "Solicite atualização de dados",
-        gradient: "from-purple-600 to-violet-700"
-      },
-      {
-        title: "Minha Assinatura",
-        href: "/cadastro-assinatura",
-        icon: FileSignature,
-        description: "Cadastrar assinatura digital",
-        gradient: "from-teal-500 to-cyan-600"
-      },
-    ];
+  {
+    title: "Denúncias",
+    href: "/responsavel/denuncias",
+    icon: Megaphone,
+    description: "Canal de ocorrências",
+    gradient: "from-slate-500 to-zinc-600"
+  },
+  {
+    title: "Alteração de Dados",
+    href: "/responsavel/solicitar-alteracao",
+    icon: ClipboardEdit,
+    description: "Solicite atualização de dados",
+    gradient: "from-purple-600 to-violet-700"
+  },
+  {
+    title: "Minha Assinatura",
+    href: "/cadastro-assinatura",
+    icon: FileSignature,
+    description: "Cadastrar assinatura digital",
+    gradient: "from-teal-500 to-cyan-600"
+  },
+  {
+    title: "CEPFM",
+    href: "/cepfm2026",
+    icon: Trophy,
+    description: "Campeonato PFM",
+    gradient: "from-yellow-400 to-amber-600"
+  },
+];
 
 type Student = {
   id: string;
@@ -113,7 +121,7 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
       router.push("/login");
     }
     if (profile?.role === 'aluno') {
-        router.push("/aluno/dossie");
+      router.push("/aluno/dossie");
     }
   }, [user, loading, router, profile]);
 
@@ -130,7 +138,7 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
       .select("id, nome_guerra, nome_completo, turma")
       .or(`guardian1_cpf.eq.${normalizedCpf},guardian2_cpf.eq.${normalizedCpf},responsavel_cpf.eq.${normalizedCpf}`)
       .eq("status", "ativo");
-    
+
     if (data) {
       setStudents(data);
       const savedId = sessionStorage.getItem("selectedStudentId");
@@ -182,25 +190,25 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
             {responsibleNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                      className={cn(
-                        "px-4 py-2 rounded-xl text-sm font-bold transition-all relative group overflow-hidden",
-                        isActive 
-                          ? "text-white shadow-xl shadow-purple-500/20" 
-                          : "text-slate-400 hover:text-white hover:bg-white/5"
-                      )}
-                    >
-                      <span className="relative z-20 mix-blend-plus-lighter">{item.title}</span>
-                      {isActive && (
-                        <motion.div
-                          layoutId="nav-indicator-resp"
-                          className={cn("absolute inset-0 z-10 bg-gradient-to-r", item.gradient)}
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                      )}
-                    </Link>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-sm font-bold transition-all relative group overflow-hidden",
+                    isActive
+                      ? "text-white shadow-xl shadow-purple-500/20"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  <span className="relative z-20 mix-blend-plus-lighter">{item.title}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-indicator-resp"
+                      className={cn("absolute inset-0 z-10 bg-gradient-to-r", item.gradient)}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </Link>
               );
             })}
           </nav>
@@ -219,7 +227,7 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
                   <DropdownMenuLabel className="text-slate-400 text-[10px] uppercase tracking-wider">Seus Dependentes</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/5" />
                   {students.map((student) => (
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       key={student.id}
                       onClick={() => handleSwitchStudent(student)}
                       className={cn(
@@ -317,8 +325,8 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
                         onClick={() => handleSwitchStudent(student)}
                         className={cn(
                           "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
-                          selectedStudent?.id === student.id 
-                            ? "bg-blue-600/10 border-blue-500/30 text-blue-400" 
+                          selectedStudent?.id === student.id
+                            ? "bg-blue-600/10 border-blue-500/30 text-blue-400"
                             : "bg-white/5 border-transparent text-slate-400"
                         )}
                       >
@@ -343,8 +351,8 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
                         href={item.href}
                         className={cn(
                           "flex items-center gap-3 p-3 rounded-xl transition-all",
-                          isActive 
-                            ? "bg-white/5 border border-white/10 text-white" 
+                          isActive
+                            ? "bg-white/5 border border-white/10 text-white"
                             : "text-slate-500 hover:text-slate-300"
                         )}
                       >

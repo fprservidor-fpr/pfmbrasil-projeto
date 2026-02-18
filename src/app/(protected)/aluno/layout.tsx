@@ -6,19 +6,20 @@ import { useEffect, useState, memo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { 
-  User, 
-  CalendarCheck, 
-  Award, 
-  BookOpen, 
-  Calendar, 
-  Megaphone, 
+import {
+  User,
+  CalendarCheck,
+  Award,
+  BookOpen,
+  Calendar,
+  Megaphone,
   LogOut,
   Menu,
   X,
   ChevronRight,
   GraduationCap,
-  Bell
+  Bell,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -71,6 +72,13 @@ const studentNavItems = [
     icon: Megaphone,
     description: "Ocorrências",
     gradient: "from-slate-500 to-zinc-600"
+  },
+  {
+    title: "CEPFM",
+    href: "/cepfm2026",
+    icon: Trophy,
+    description: "Ranking & Votos",
+    gradient: "from-yellow-400 to-amber-600"
   },
 ];
 
@@ -166,22 +174,22 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             })}
           </nav>
 
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => signOut()}
-                className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl hidden lg:flex group"
-                title="Sair da Conta"
-              >
-                <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-              </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => signOut()}
+              className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl hidden lg:flex group"
+              title="Sair da Conta"
+            >
+              <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+            </Button>
 
-              <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-white/5 rounded-xl hidden sm:flex">
-                <Bell className="w-4 h-4" />
-              </Button>
-              
-              <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-white/10">
+            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-white/5 rounded-xl hidden sm:flex">
+              <Bell className="w-4 h-4" />
+            </Button>
+
+            <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-white/10">
               <div className="text-right">
                 <p className="text-xs font-black text-white leading-none">{profile?.full_name?.split(" ")[0]}</p>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Aluno Ativo</p>
@@ -190,7 +198,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 {profile?.full_name?.charAt(0) || "A"}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -242,7 +250,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              
+
               <div className="p-4 space-y-2">
                 {studentNavItems.map((item) => {
                   const isActive = pathname === item.href;
@@ -252,8 +260,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                       href={item.href}
                       className={cn(
                         "flex items-center gap-4 p-4 rounded-2xl transition-all border",
-                        isActive 
-                          ? "bg-white/10 border-white/10 shadow-lg" 
+                        isActive
+                          ? "bg-white/10 border-white/10 shadow-lg"
                           : "border-transparent hover:bg-white/5"
                       )}
                     >
@@ -308,7 +316,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   <p className="text-sm text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">{currentNav.description}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-white/5 px-4 py-2 rounded-full border border-white/5">
                 <Link href="/aluno" className="hover:text-white transition-colors">Portal</Link>
                 <ChevronRight className="w-3 h-3" />

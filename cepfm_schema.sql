@@ -123,3 +123,34 @@ CREATE POLICY "Leitura Pública Membros" ON cepfm_membros FOR SELECT USING (true
 CREATE POLICY "Leitura Pública Pontuacoes" ON cepfm_pontuacoes FOR SELECT USING (true);
 CREATE POLICY "Leitura Pública Votacoes" ON cepfm_votacoes FOR SELECT USING (true);
 CREATE POLICY "Leitura Pública Votos" ON cepfm_votos FOR SELECT USING (true);
+
+-- Políticas de Escrita para Usuários Autenticados (Admins)
+CREATE POLICY "Escrita Autenticada Patrulhas" ON cepfm_patrulhas FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Escrita Autenticada Modalidades" ON cepfm_modalidades FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Escrita Autenticada Membros" ON cepfm_membros FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Escrita Autenticada Pontuacoes" ON cepfm_pontuacoes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Escrita Autenticada Votacoes" ON cepfm_votacoes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Escrita Autenticada Votos" ON cepfm_votos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- ==========================================
+-- 11. Políticas de STORAGE para o Bucket 'cepfm'
+-- ==========================================
+
+-- Permite que qualquer pessoa veja as logos
+CREATE POLICY "Acesso Público Logos"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'cepfm' );
+
+-- Permite que usuários autenticados façam upload
+CREATE POLICY "Upload Autenticado Logos"
+ON storage.objects FOR INSERT
+WITH CHECK ( bucket_id = 'cepfm' AND auth.role() = 'authenticated' );
+
+-- Permite que usuários autenticados atualizem/deletem
+CREATE POLICY "Update Autenticado Logos"
+ON storage.objects FOR UPDATE
+USING ( bucket_id = 'cepfm' AND auth.role() = 'authenticated' );
+
+CREATE POLICY "Delete Autenticado Logos"
+ON storage.objects FOR DELETE
+USING ( bucket_id = 'cepfm' AND auth.role() = 'authenticated' );
