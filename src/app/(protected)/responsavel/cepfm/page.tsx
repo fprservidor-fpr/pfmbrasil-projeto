@@ -8,19 +8,16 @@ import {
     Crown,
     Star,
     Medal,
-    Shield,
     TrendingUp,
-    LayoutDashboard,
     ArrowRight
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { StarField } from "@/components/StarField";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
-
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import Link from "next/link";
 
 interface Patrulha {
     id: string;
@@ -39,7 +36,7 @@ interface Membro {
     aluno_id: string;
 }
 
-export default function StudentCEPFMPage() {
+export default function ResponsibleCEPFMPage() {
     const { profile } = useAuth();
     const [loading, setLoading] = useState(true);
     const [patrulhas, setPatrulhas] = useState<Patrulha[]>([]);
@@ -47,28 +44,32 @@ export default function StudentCEPFMPage() {
     const [myRole, setMyRole] = useState<string>("Recruta");
     const [members, setMembers] = useState<Membro[]>([]);
 
-    useEffect(() => {
-        if (profile?.id) {
-            fetchStudentData();
-        }
-    }, [profile?.id]);
+    const studentId = typeof window !== "undefined" ? sessionStorage.getItem("selectedStudentId") : null;
 
-    async function fetchStudentData() {
+    useEffect(() => {
+        if (studentId) {
+            fetchStudentData(studentId);
+        } else {
+            setLoading(false);
+        }
+    }, [studentId]);
+
+    async function fetchStudentData(id: string) {
         try {
             setLoading(true);
 
             // 1. Get all patrols
             const { data: pData } = await supabase.from("cepfm_patrulhas").select("*");
 
-            // 2. Get all points to calculate global ranking
+            // 2. Get all points
             const { data: ptsData } = await supabase.from("cepfm_pontuacoes").select("*");
 
             // 3. Find this specific student and their patrol
             const { data: memberData } = await supabase
                 .from("cepfm_membros")
                 .select("*")
-                .eq("aluno_id", profile?.id)
-                .single();
+                .eq("aluno_id", id)
+                .maybeSingle();
 
             // Calculate total points for each patrol
             const patrolPoints: Record<string, number> = {};
@@ -79,7 +80,7 @@ export default function StudentCEPFMPage() {
             const enrichedPatrulhas = (pData || []).map(p => ({
                 ...p,
                 total_pontos: patrolPoints[p.id] || 0
-            })).sort((a, b) => b.total_pontos - a.total_pontos);
+            })).sort((a, b) => (b.total_pontos || 0) - (a.total_pontos || 0));
 
             setPatrulhas(enrichedPatrulhas);
 
@@ -98,7 +99,7 @@ export default function StudentCEPFMPage() {
             }
 
         } catch (error) {
-            console.error("Erro ao carregar dados do portal do aluno:", error);
+            console.error("Erro ao carregar dados do CEPFM para responsável:", error);
         } finally {
             setLoading(false);
         }
@@ -106,11 +107,30 @@ export default function StudentCEPFMPage() {
 
     const isVIP = myRole === "Líder" || myRole === "Vice-Líder";
 
-    if (loading || !profile) return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+            <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-10 h-10 border-2 border-yellow-500 border-t-transparent rounded-full"
+            />
         </div>
     );
+
+    if (!studentId) {
+        return (
+            <div className="text-center py-20 px-4">
+                <div className="bg-slate-900/50 border border-white/5 p-12 rounded-[40px] max-w-md mx-auto">
+                    <Trophy className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                    <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Selecione um Aluno</h2>
+                    <p className="text-slate-500 text-sm mb-6">Escolha um dependente para visualizar o status no CEPFM.</p>
+                    <Link href="/responsavel" className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-2xl font-bold transition-all text-sm">
+                        Voltar para Seleção
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const getColorName = (patrulhaNome: string) => {
         switch (patrulhaNome) {
@@ -126,8 +146,8 @@ export default function StudentCEPFMPage() {
 
     return (
         <div className={cn(
-            "min-h-screen transition-all duration-1000 relative overflow-hidden",
-            isVIP ? `bg-slate-950` : "bg-transparent"
+            "space-y-10 transition-all duration-1000 relative overflow-hidden min-h-screen",
+            isVIP ? "p-4 md:p-10 rounded-[4rem] bg-slate-950" : ""
         )}>
             {/* VIP Backdrop Effects */}
             {isVIP && (
@@ -137,11 +157,10 @@ export default function StudentCEPFMPage() {
                         myColor === 'yellow' ? 'bg-yellow-500' : myColor === 'blue' ? 'bg-blue-600' : myColor === 'red' ? 'bg-red-600' : 'bg-slate-500'
                     )} />
                     <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_100%)]" />
-                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 animate-pulse" />
                 </>
             )}
 
-            <div className="relative z-10 px-4 md:px-8 py-10 space-y-10">
+            <div className="relative z-10 space-y-10">
                 {/* Stunning VIP/Standard Banner */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -175,8 +194,8 @@ export default function StudentCEPFMPage() {
                                 {myPatrulha?.logo_url ? (
                                     <img src={myPatrulha.logo_url} className="w-full h-full rounded-full object-cover" alt="" />
                                 ) : (
-                                    <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center">
-                                        <Users className="w-16 h-16 text-slate-700" />
+                                    <div className="w-full h-full rounded-full bg-zinc-800 flex items-center justify-center">
+                                        <Users className="w-16 h-16 text-zinc-700" />
                                     </div>
                                 )}
                             </div>
@@ -188,14 +207,14 @@ export default function StudentCEPFMPage() {
                                     whileHover={{ scale: 1.05 }}
                                     className={cn(
                                         "px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-lg",
-                                        isVIP ? "bg-white text-slate-950" : "bg-yellow-400 text-black"
+                                        isVIP ? "bg-white text-slate-950" : "bg-yellow-400 text-black border border-yellow-400/20"
                                     )}
                                 >
-                                    {isVIP ? `COMANDO VIP: ${myRole}` : (myPatrulha ? "Guerreiro da Equipe" : "Recruta")}
+                                    {isVIP ? `PLANO VIP: ${myRole}` : (myPatrulha ? "Acompanhamento Ativo" : "Aguardando Vínculo")}
                                 </motion.span>
                                 {isVIP && (
                                     <span className="px-6 py-2 bg-black/20 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-full backdrop-blur-md border border-white/10 flex items-center gap-2 shadow-xl">
-                                        <Crown className="w-4 h-4 text-yellow-300 animate-bounce" /> Status Premium Ativo
+                                        <Crown className="w-4 h-4 text-yellow-300 animate-bounce" /> Destaque Premium
                                     </span>
                                 )}
                             </div>
@@ -203,15 +222,15 @@ export default function StudentCEPFMPage() {
                                 "text-6xl md:text-9xl font-black italic tracking-tighter uppercase mb-4 leading-none drop-shadow-2xl",
                                 "text-white"
                             )}>
-                                {myPatrulha?.nome ? `PATRULHA ${myPatrulha.nome}` : "Batalhão CEPFM"}
+                                {myPatrulha?.nome ? `PATRULHA ${myPatrulha.nome}` : "Status CEPFM"}
                             </h1>
                             <p className={cn(
                                 "text-xl md:text-2xl font-medium max-w-3xl leading-tight",
                                 isVIP ? "text-white/90" : "text-slate-400"
                             )}>
                                 {isVIP
-                                    ? "Lidere com honra. O destino do campeonato está em suas mãos."
-                                    : "Acompanhe cada ponto conquistado e lute por sua patrulha até o fim."}
+                                    ? "O seu dependente detém um cargo de comando. Acompanhe a liderança da equipe."
+                                    : "Monitore o desempenho e conheça os companheiros de patrulha do seu filho."}
                             </p>
                         </div>
                     </div>
@@ -229,7 +248,7 @@ export default function StudentCEPFMPage() {
                                     <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center border border-yellow-400/20">
                                         <Users className="w-6 h-6 text-yellow-400" />
                                     </div>
-                                    <span>Seus <span className="text-yellow-400">Guerreiros</span></span>
+                                    <span>Membros da <span className="text-yellow-400 font-black">Equipe</span></span>
                                 </h2>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -244,7 +263,7 @@ export default function StudentCEPFMPage() {
                                                 "group border rounded-[2rem] p-7 flex items-center justify-between transition-all duration-300",
                                                 member.cargo !== 'Recruta'
                                                     ? "bg-yellow-400/10 border-yellow-400/30 shadow-lg shadow-yellow-400/5 ring-1 ring-yellow-400/20"
-                                                    : "bg-slate-950/40 border-white/5 hover:border-white/20"
+                                                    : "bg-slate-950/40 border-white/5 hover:border-white/10"
                                             )}
                                         >
                                             <div className="flex items-center gap-6">
@@ -282,7 +301,7 @@ export default function StudentCEPFMPage() {
                         </section>
                     </div>
 
-                    {/* Performance / Ranking Section */}
+                    {/* Ranking Section */}
                     <div className="lg:col-span-4 space-y-10">
                         <Card className={cn(
                             "border rounded-[3.5rem] overflow-hidden shadow-2xl transition-all duration-700",
@@ -324,7 +343,7 @@ export default function StudentCEPFMPage() {
 
                                 <div className="pt-10 border-t border-white/5 text-center">
                                     <Link href="/cepfm2026" className="w-full flex items-center justify-center gap-3 text-slate-500 hover:text-white transition-all font-black uppercase text-[10px] tracking-[0.2em] group">
-                                        Abrir Painel de Votação <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                                        Ver Página de Votação <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                                     </Link>
                                 </div>
                             </CardContent>
@@ -341,16 +360,16 @@ export default function StudentCEPFMPage() {
                             <div className="w-24 h-24 bg-yellow-400/10 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-yellow-400/20 shadow-2xl transition-transform group-hover:scale-110 duration-500">
                                 <Medal className="w-12 h-12 text-yellow-400" />
                             </div>
-                            <h4 className="text-3xl font-black uppercase italic text-white mb-4">Resumo Tático</h4>
+                            <h4 className="text-3xl font-black uppercase italic text-white mb-4">Status da Equipe</h4>
                             <p className="text-slate-400 text-lg font-medium mb-10 px-6 leading-snug">
-                                Sua patrulha detém a <span className="text-white font-black">{patrulhas.findIndex(p => p.id === myPatrulha?.id) + 1}ª posição</span> no ranking militar.
+                                Atualmente em <span className="text-white font-black">{patrulhas.findIndex(p => p.id === myPatrulha?.id) + 1}º lugar</span> no quadro geral.
                             </p>
                             <div className="h-2 bg-white/5 rounded-full overflow-hidden shadow-inner">
                                 <motion.div
                                     initial={{ x: "-100%" }}
                                     animate={{ x: "0%" }}
                                     transition={{ duration: 1.5, ease: "easeOut" }}
-                                    className="h-full w-[70%] bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.3)]"
+                                    className="h-full w-[70%] bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 rounded-full shadow-[0_0_15_rgba(234,179,8,0.3)]"
                                 />
                             </div>
                         </motion.div>

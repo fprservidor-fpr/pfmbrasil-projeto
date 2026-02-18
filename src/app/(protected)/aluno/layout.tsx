@@ -75,7 +75,7 @@ const studentNavItems = [
   },
   {
     title: "CEPFM",
-    href: "/cepfm2026",
+    href: "/aluno/cepfm",
     icon: Trophy,
     description: "Ranking & Votos",
     gradient: "from-yellow-400 to-amber-600"

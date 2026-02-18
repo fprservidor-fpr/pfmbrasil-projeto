@@ -94,7 +94,7 @@ const responsibleNavItems = [
   },
   {
     title: "CEPFM",
-    href: "/cepfm2026",
+    href: "/responsavel/cepfm",
     icon: Trophy,
     description: "Campeonato PFM",
     gradient: "from-yellow-400 to-amber-600"
