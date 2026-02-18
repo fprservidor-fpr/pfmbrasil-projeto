@@ -242,6 +242,18 @@ export default function CEPFMAdminPage() {
         }
     };
 
+    const updateMemberRole = async (id: string, newRole: string) => {
+        try {
+            const { error } = await supabase.from("cepfm_membros").update({ cargo: newRole }).eq("id", id);
+            if (error) throw error;
+            toast.success(`Cargo atualizado para ${newRole}`);
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao atualizar cargo.");
+        }
+    };
+
     const removeMember = async (id: string) => {
         try {
             const { error } = await supabase.from("cepfm_membros").delete().eq("id", id);
@@ -393,27 +405,41 @@ export default function CEPFMAdminPage() {
                         <div className="lg:col-span-4 space-y-6">
                             <Card className="bg-zinc-900/30 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-sm">
                                 <CardHeader className="p-8 bg-white/5 border-b border-white/5">
-                                    <CardTitle className="text-xl font-black uppercase italic text-white">Selecionar Equipe</CardTitle>
+                                    <CardTitle className="text-xl font-black uppercase italic text-white text-center">Selecionar Equipe</CardTitle>
                                 </CardHeader>
-                                <CardContent className="p-6 space-y-4">
-                                    {patrulhas.map(p => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => setSelectedPatrulhaId(p.id)}
-                                            className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between group ${selectedPatrulhaId === p.id
-                                                ? 'bg-yellow-400 border-yellow-400 text-black'
-                                                : 'bg-zinc-950 border-white/5 text-zinc-400 hover:border-white/20'
-                                                }`}
-                                        >
+                                <CardContent className="p-8">
+                                    <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
+                                        <SelectTrigger className="w-full h-16 bg-zinc-950 border-white/5 rounded-2xl text-lg font-black uppercase tracking-tight data-[state=open]:border-yellow-400 transition-all">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full overflow-hidden ${selectedPatrulhaId === p.id ? 'bg-black/10' : 'bg-zinc-800'}`}>
-                                                    <img src={p.logo_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                                <span className="font-black uppercase tracking-tight">{p.nome}</span>
+                                                {selectedPatrulhaId && (
+                                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800">
+                                                        <img
+                                                            src={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                )}
+                                                <SelectValue placeholder="Escolha a equipe..." />
                                             </div>
-                                            <ChevronRight className={`w-4 h-4 transition-transform ${selectedPatrulhaId === p.id ? 'translate-x-1' : ''}`} />
-                                        </button>
-                                    ))}
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl p-2">
+                                            {patrulhas.map(p => (
+                                                <SelectItem
+                                                    key={p.id}
+                                                    value={p.id}
+                                                    className="rounded-xl font-black uppercase tracking-tight py-4 focus:bg-yellow-400 focus:text-black"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800">
+                                                            <img src={p.logo_url} alt="" className="w-full h-full object-cover" />
+                                                        </div>
+                                                        {p.nome}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </CardContent>
                             </Card>
 
@@ -438,7 +464,7 @@ export default function CEPFMAdminPage() {
                                         </DialogHeader>
 
                                         <div className="flex-1 overflow-y-auto px-8 py-4 space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 gap-4">
                                                 <div className="space-y-2">
                                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">1. Selecione a Patrulha</label>
                                                     <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
@@ -452,25 +478,11 @@ export default function CEPFMAdminPage() {
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
-
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">2. Definir Cargo</label>
-                                                    <Select value={selectedCargo} onValueChange={setSelectedCargo}>
-                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-zinc-900 border-white/10">
-                                                            <SelectItem value="Líder">Líder</SelectItem>
-                                                            <SelectItem value="Vice-Líder">Vice-Líder</SelectItem>
-                                                            <SelectItem value="Recruta">Recruta (Padrão)</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
                                             </div>
 
                                             <div className="space-y-4">
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">3. Busca Rápida de Alunos Disponíveis</label>
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">2. Busca Rápida de Alunos Disponíveis</label>
                                                     <div className="relative">
                                                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                                                         <Input
@@ -590,10 +602,27 @@ export default function CEPFMAdminPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right p-8">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white hover:bg-white/5">
-                                                                <Edit3 className="w-4 h-4" />
-                                                            </Button>
+                                                        <div className="flex items-center justify-end gap-3">
+                                                            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-white/5 mr-2">
+                                                                <button
+                                                                    onClick={() => updateMemberRole(member.id, 'Líder')}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Líder' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-zinc-600 hover:text-white'}`}
+                                                                >
+                                                                    Líder
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => updateMemberRole(member.id, 'Vice-Líder')}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Vice-Líder' ? 'bg-zinc-500 text-white shadow-lg' : 'text-zinc-600 hover:text-white'}`}
+                                                                >
+                                                                    Vice
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => updateMemberRole(member.id, 'Recruta')}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Recruta' ? 'bg-zinc-800 text-zinc-400' : 'text-zinc-600 hover:text-white'}`}
+                                                                >
+                                                                    Recruta
+                                                                </button>
+                                                            </div>
                                                             <Button
                                                                 onClick={() => removeMember(member.id)}
                                                                 variant="ghost"
