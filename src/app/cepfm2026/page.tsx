@@ -137,6 +137,12 @@ export default function CEPFMPage() {
 
             if (pError) throw pError;
 
+            // Fetch active votation votes to add to points
+            const { data: votesData } = await supabase
+                .from("cepfm_votos")
+                .select("patrulha_id, votos_contabilizados")
+                .eq("votacao_id", activeVotacao?.id || "");
+
             // Fetch points for each patrol
             const patrulhasWithPoints = await Promise.all((pData || []).map(async (p) => {
                 const { data: ptsData } = await supabase
@@ -144,13 +150,23 @@ export default function CEPFMPage() {
                     .select("pontos")
                     .eq("patrulha_id", p.id);
 
-                const totalPoints = ptsData?.reduce((acc, curr) => acc + curr.pontos, 0) || 0;
-                return { ...p, points: totalPoints };
+                const basePoints = ptsData?.reduce((acc, curr) => acc + curr.pontos, 0) || 0;
+
+                // Sum votes for this patrol
+                const campaignVotes = votesData
+                    ?.filter(v => v.patrulha_id === p.id)
+                    .reduce((acc, curr) => acc + curr.votos_contabilizados, 0) || 0;
+
+                return {
+                    ...p,
+                    points: basePoints + campaignVotes,
+                    campaign_votes: campaignVotes
+                };
             }));
 
             const sorted = patrulhasWithPoints.sort((a, b) => (b.points || 0) - (a.points || 0));
             setPatrulhas(sorted);
-            if (sorted.length > 0) setSelectedPatrulha(sorted[0].id);
+            if (sorted.length > 0 && !selectedPatrulha) setSelectedPatrulha(sorted[0].id);
         } catch (error) {
             console.error("Erro ao buscar dados:", error);
             toast.error("Erro ao carregar ranking.");
@@ -158,6 +174,47 @@ export default function CEPFMPage() {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        // Real-time Subscription for Votes
+        const votesChannel = supabase
+            .channel('realtime-ranking-votes')
+            .on(
+                'postgres_changes' as any,
+                { event: 'INSERT', table: 'cepfm_votos' },
+                () => {
+                    fetchInitialData();
+                }
+            )
+            .subscribe();
+
+        // Listen for window focus to verify Instagram return
+        const handleFocus = () => {
+            const pending = localStorage.getItem('pending_insta_verify');
+            if (pending && activeVotacao) {
+                const currentFollowed = JSON.parse(localStorage.getItem(`followed_${activeVotacao.id}`) || '[]');
+                if (!currentFollowed.includes(pending)) {
+                    const updated = [...currentFollowed, pending];
+                    setFollowedPartners(updated);
+                    localStorage.setItem(`followed_${activeVotacao.id}`, JSON.stringify(updated));
+                    toast.success(`Validado: Seguiu ${pending}!`);
+
+                    if (updated.length === (activeVotacao?.parceiros_instagram?.length || 0)) {
+                        toast.success("Todos os parceiros seguidos! Voto liberado.");
+                        setVoteStep(2);
+                    }
+                }
+                localStorage.removeItem('pending_insta_verify');
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            supabase.removeChannel(votesChannel);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [activeVotacao, followedPartners.length]);
 
     async function fetchMembers(patrulhaId: string) {
         const { data, error } = await supabase
@@ -182,25 +239,14 @@ export default function CEPFMPage() {
     }
 
     const handleFollow = (partner: { nome: string, link: string }) => {
+        // Memorize pending verification
+        localStorage.setItem('pending_insta_verify', partner.nome);
+
         // Open Instagram in a new tab
         window.open(partner.link, '_blank');
 
         setIsFollowing(true);
-        setTimeout(() => {
-            const newFollowed = [...followedPartners, partner.nome];
-            setFollowedPartners(newFollowed);
-
-            // Memorize on device
-            if (activeVotacao) {
-                localStorage.setItem(`followed_${activeVotacao.id}`, JSON.stringify(newFollowed));
-            }
-
-            setIsFollowing(false);
-            if (newFollowed.length === (activeVotacao?.parceiros_instagram?.length || 0)) {
-                toast.success("Todos os parceiros seguidos! Voto liberado.");
-                setVoteStep(2);
-            }
-        }, 1200);
+        setTimeout(() => setIsFollowing(false), 2000);
     };
 
     const handleVote = async (patrulhaId: string) => {
@@ -389,14 +435,24 @@ export default function CEPFMPage() {
                                         {patrulha.nome}
                                     </h3>
 
-                                    <div className="bg-white/5 rounded-2xl px-6 py-3 border border-white/5 mb-6">
-                                        <span className="text-xs font-black uppercase tracking-widest text-zinc-400 block mb-1">Pontuação Total</span>
-                                        <span className="text-3xl font-black italic">{patrulha.points}</span>
-                                        {(patrulha as any).campaign_votes > 0 && (
-                                            <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-yellow-400/80">
-                                                +{(patrulha as any).campaign_votes} Votos Ativos
+                                    <div className="bg-white/5 rounded-2xl px-6 py-4 border border-white/5 mb-6 w-full max-w-[200px]">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Acumulado</span>
+                                            <span className="text-4xl font-black italic tabular-nums">{patrulha.points}</span>
+                                        </div>
+
+                                        <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2">
+                                            <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                                                <span>Modalidades:</span>
+                                                <span className="text-white">{(patrulha.points || 0) - ((patrulha as any).campaign_votes || 0)}</span>
                                             </div>
-                                        )}
+                                            {(patrulha as any).campaign_votes > 0 && (
+                                                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-yellow-500">
+                                                    <span>Votos Ativos:</span>
+                                                    <span>+{(patrulha as any).campaign_votes}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="text-zinc-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 group-hover:text-white transition-colors">

@@ -949,9 +949,16 @@ export default function CEPFMAdminPage() {
                                                 />
                                             </div>
                                             <div className="space-y-4">
-                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Votos Atuais</label>
-                                                <div className="bg-zinc-950 border border-white/5 h-16 rounded-2xl flex items-center px-6 text-xl font-black text-yellow-500 tabular-nums shadow-inner">
-                                                    {Object.values(votosContabilizados).reduce((a, b) => a + b, 0)} <span className="text-[10px] text-zinc-700 ml-3 uppercase tracking-widest font-bold">Total Computado</span>
+                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Placar em Tempo Real</label>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {patrulhas.map(p => (
+                                                        <div key={p.id} className="bg-zinc-950/50 border border-white/5 p-4 rounded-2xl flex items-center justify-between">
+                                                            <span className="text-[10px] font-black uppercase text-zinc-400">{p.nome}</span>
+                                                            <span className="text-sm font-black text-yellow-500 tabular-nums">
+                                                                {votosContabilizados[p.id] || 0}
+                                                            </span>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         </div>
