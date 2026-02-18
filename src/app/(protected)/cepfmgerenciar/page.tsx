@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     LayoutDashboard,
     Trophy,
@@ -20,9 +20,14 @@ import {
     ChevronRight,
     Timer,
     Upload,
-    Loader2
+    Loader2,
+    CheckCircle2,
+    AlertCircle,
+    Info,
+    BarChart3,
+    Target
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -63,9 +68,9 @@ import {
     DialogFooter
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
 
 // --- Types ---
 interface Patrulha {
@@ -104,7 +109,6 @@ export default function CEPFMAdminPage() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
-    // New state for student selection
     const [allStudents, setAllStudents] = useState<any[]>([]);
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [studentSearch, setStudentSearch] = useState("");
@@ -121,7 +125,7 @@ export default function CEPFMAdminPage() {
         try {
             setLoading(true);
             const [pRes, mRes, ptsRes, memRes, vRes, sRes] = await Promise.all([
-                supabase.from("cepfm_patrulhas").select("*"),
+                supabase.from("cepfm_patrulhas").select("*").order("nome"),
                 supabase.from("cepfm_modalidades").select("*").order("ordem"),
                 supabase.from("cepfm_pontuacoes").select("*"),
                 supabase.from("cepfm_membros").select("*"),
@@ -131,8 +135,10 @@ export default function CEPFMAdminPage() {
 
             if (pRes.data) {
                 setPatrulhas(pRes.data);
-                if (pRes.data.length > 0) setSelectedPatrulhaId(pRes.data[0].id);
-                if (pRes.data.length > 0 && !selectedPatrulhaId) setSelectedPatrulhaId(pRes.data[0].id);
+                // Maintain selection or set default
+                if (pRes.data.length > 0 && !selectedPatrulhaId) {
+                    setSelectedPatrulhaId(pRes.data[0].id);
+                }
             }
             if (mRes.data) setModalidades(mRes.data);
             if (memRes.data) setMembers(memRes.data);
@@ -145,10 +151,6 @@ export default function CEPFMAdminPage() {
                 fetchVoteCounts(vRes.data.id);
             }
 
-            // Remove duplicates from patrulhas if any (just safe guard)
-            // Not strictly needed if ID is unique
-
-            // Structure scores: { patrulhaId: { modalidadeId: pontos } }
             const initialScores: Record<string, Record<string, number>> = {};
             pRes.data?.forEach(p => {
                 initialScores[p.id] = {};
@@ -162,11 +164,9 @@ export default function CEPFMAdminPage() {
             });
 
             if (sRes.data) setAllStudents(sRes.data);
-
             setScores(initialScores);
         } catch (error) {
-            console.error(error);
-            // vRes error might just mean no active voting found
+            console.error("Error fetching base data:", error);
         } finally {
             setLoading(false);
         }
@@ -187,26 +187,10 @@ export default function CEPFMAdminPage() {
         }
     }
 
-    const launchVoting = async () => {
-        try {
-            // First deactivate all
-            await supabase.from("cepfm_votacoes").update({ ativa: false }).eq("ativa", true);
-
-            const { data, error } = await supabase.from("cepfm_votacoes").insert({
-                titulo: votingTitle,
-                data_inicio: new Date(startDate).toISOString(),
-                data_fim: new Date(endDate).toISOString(),
-                parceiros_instagram: instaLinks,
-                ativa: true
-            }).select().single();
-
-            if (error) throw error;
-            toast.success("Nova votação lançada com sucesso!");
-            setActiveVoting(data);
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao lançar votação.");
-        }
+    const calculateTotal = (patrulhaId: string) => {
+        const pScores = scores[patrulhaId];
+        if (!pScores) return 0;
+        return Object.values(pScores).reduce((a, b) => a + b, 0) + (votosContabilizados[patrulhaId] || 0);
     };
 
     const handleScoreChange = (patrulhaId: string, modId: string, val: string) => {
@@ -216,138 +200,6 @@ export default function CEPFMAdminPage() {
             [patrulhaId]: { ...prev[patrulhaId], [modId]: num }
         }));
     };
-
-    const confirmInclusion = async () => {
-        if (selectedStudentIds.length === 0 || !selectedPatrulhaId) {
-            toast.error("Selecione pelo menos um aluno.");
-            return;
-        }
-
-        setAddingMember(true);
-        try {
-            const newMembers = selectedStudentIds.map(id => {
-                const student = allStudents.find(s => s.id === id);
-                return {
-                    patrulha_id: selectedPatrulhaId,
-                    aluno_id: student.id,
-                    nome_guerra: student.nome_guerra || student.nome_completo.split(' ')[0],
-                    matricula: student.matricula_pfm || '---',
-                    cargo: selectedCargo
-                };
-            });
-
-            const { error } = await supabase.from("cepfm_membros").insert(newMembers);
-            if (error) throw error;
-
-            toast.success(`${selectedStudentIds.length} membro(s) incluídos com sucesso!`);
-            setSelectedStudentIds([]);
-            setIsDialogOpen(false);
-            fetchBaseData(); // Refresh list
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao incluir membros.");
-        } finally {
-            setAddingMember(false);
-        }
-    };
-
-    const updateMemberRole = async (id: string, newRole: string) => {
-        try {
-            const { error } = await supabase.from("cepfm_membros").update({ cargo: newRole }).eq("id", id);
-            if (error) throw error;
-            toast.success(`Cargo atualizado para ${newRole}`);
-            fetchBaseData();
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao atualizar cargo.");
-        }
-    };
-
-    const removeMember = async (id: string) => {
-        try {
-            const { error } = await supabase.from("cepfm_membros").delete().eq("id", id);
-            if (error) throw error;
-            toast.success("Membro removido da patrulha.");
-            fetchBaseData();
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao remover membro.");
-        }
-    };
-
-    const handleUploadLogo = async (patrulhaId: string, url: string) => {
-        try {
-            const { error } = await supabase
-                .from("cepfm_patrulhas")
-                .update({ logo_url: url })
-                .eq("id", patrulhaId);
-
-            if (error) throw error;
-            toast.success("Logo atualizada!");
-            fetchBaseData();
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao atualizar logo.");
-        }
-    };
-
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, patrulhaId: string) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Check file type
-        if (!file.type.startsWith('image/')) {
-            toast.error("Por favor, selecione um arquivo de imagem.");
-            return;
-        }
-
-        setIsUploading(true);
-        try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${patrulhaId}-${Math.random()}.${fileExt}`;
-            const filePath = `logos/${fileName}`;
-
-            // Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-                .from('cepfm')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            // Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('cepfm')
-                .getPublicUrl(filePath);
-
-            // Update Database
-            const { error: updateError } = await supabase
-                .from("cepfm_patrulhas")
-                .update({ logo_url: publicUrl })
-                .eq("id", patrulhaId);
-
-            if (updateError) throw updateError;
-
-            toast.success("Logo enviada e atualizada com sucesso!");
-            fetchBaseData();
-        } catch (error: any) {
-            console.error(error);
-            toast.error(error.message || "Erro ao fazer upload da imagem.");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    // Filter students for the selection list:
-    // 1. Must match search
-    // 2. Must NOT be already in any patrol (not in members list)
-    const availableStudents = allStudents.filter(s => {
-        if (s.status !== "ativo") return false;
-        const isAlreadyMember = members.some(m => m.aluno_id === s.id);
-        const matchesSearch = (s.nome_guerra?.toLowerCase().includes(studentSearch.toLowerCase()) ||
-            s.nome_completo?.toLowerCase().includes(studentSearch.toLowerCase()) ||
-            s.matricula_pfm?.toLowerCase().includes(studentSearch.toLowerCase()));
-        return !isAlreadyMember && matchesSearch;
-    });
 
     const saveRanking = async () => {
         try {
@@ -368,603 +220,784 @@ export default function CEPFMAdminPage() {
 
             if (error) throw error;
             toast.success("Ranking atualizado com sucesso!");
+            fetchBaseData();
         } catch (error) {
             console.error(error);
             toast.error("Erro ao salvar pontuações.");
         }
     };
 
-    const calculateTotal = (patrulhaId: string) => {
-        if (!scores[patrulhaId]) return 0;
-        return Object.values(scores[patrulhaId]).reduce((a, b) => a + b, 0);
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, patrulhaId: string) => {
+        const file = e.target.files?.[0];
+        if (!file || !patrulhaId) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Por favor, selecione um arquivo de imagem.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${patrulhaId}-${Date.now()}.${fileExt}`;
+            const filePath = `logos/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('cepfm')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('cepfm')
+                .getPublicUrl(filePath);
+
+            const { error: updateError } = await supabase
+                .from("cepfm_patrulhas")
+                .update({ logo_url: publicUrl })
+                .eq("id", patrulhaId);
+
+            if (updateError) throw updateError;
+
+            toast.success("Logo atualizada com sucesso!");
+            fetchBaseData();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Erro ao carregar imagem.");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
+    const confirmInclusion = async () => {
+        if (selectedStudentIds.length === 0 || !selectedPatrulhaId) {
+            toast.error("Selecione os alunos e a patrulha.");
+            return;
+        }
+
+        setAddingMember(true);
+        try {
+            const newMembers = selectedStudentIds.map(id => {
+                const student = allStudents.find(s => s.id === id);
+                return {
+                    patrulha_id: selectedPatrulhaId,
+                    aluno_id: student.id,
+                    nome_guerra: student.nome_guerra || student.nome_completo.split(' ')[0],
+                    matricula: student.matricula_pfm || '---',
+                    cargo: selectedCargo
+                };
+            });
+
+            const { error } = await supabase.from("cepfm_membros").insert(newMembers);
+            if (error) throw error;
+
+            toast.success("Membros adicionados com sucesso!");
+            setSelectedStudentIds([]);
+            setIsDialogOpen(false);
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao incluir membros.");
+        } finally {
+            setAddingMember(false);
+        }
+    };
+
+    const updateMemberRole = async (id: string, newRole: string) => {
+        try {
+            const { error } = await supabase.from("cepfm_membros").update({ cargo: newRole }).eq("id", id);
+            if (error) throw error;
+            toast.success(`Cargo atualizado!`);
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const removeMember = async (id: string) => {
+        try {
+            const { error } = await supabase.from("cepfm_membros").delete().eq("id", id);
+            if (error) throw error;
+            toast.success("Membro removido.");
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const availableStudents = allStudents.filter(s => {
+        if (s.status !== "ativo") return false;
+        const isAlreadyMember = members.some(m => m.aluno_id === s.id);
+        const matchesSearch = (
+            s.nome_guerra?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+            s.nome_completo?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+            s.matricula_pfm?.toLowerCase().includes(studentSearch.toLowerCase())
+        );
+        return !isAlreadyMember && matchesSearch;
+    });
+
+    const currentPatrulha = patrulhas.find(p => p.id === selectedPatrulhaId);
+
     if (loading) return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-6"
+            >
+                <div className="w-16 h-16 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin" />
+                <p className="text-yellow-500 font-black uppercase tracking-[0.3em] text-xs">Carregando Sistema</p>
+            </motion.div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white p-6 md:p-10 selection:bg-yellow-400/30">
-            <header className="mb-10">
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-                        <Trophy className="w-6 h-6 text-black" />
-                    </div>
+        <div className="min-h-screen bg-[#050505] text-zinc-100 p-4 md:p-8 lg:p-12 selection:bg-yellow-500/30 font-sans">
+            {/* --- PREMIUM HEADER --- */}
+            <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
+                <div className="space-y-4">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-3"
+                    >
+                        <div className="px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center gap-2">
+                            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_#eab308]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500">Sistema Live | Admin 2026</span>
+                        </div>
+                    </motion.div>
+
                     <div>
-                        <h1 className="text-3xl font-black uppercase tracking-tight italic">Painel <span className="text-yellow-400">CEPFM 2026</span></h1>
-                        <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.2em]">Gestão Administrativa do Campeonato</p>
+                        <motion.h1
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-none"
+                        >
+                            Painel <span className="text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.3)]">CEPFM</span>
+                        </motion.h1>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-zinc-500 font-bold uppercase text-xs tracking-[0.4em] mt-2"
+                        >
+                            Comissão de Eventos Polícia Forças Mirins
+                        </motion.p>
                     </div>
                 </div>
+
+                {/* Quick Stats Grid */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="grid grid-cols-2 md:grid-cols-3 gap-4"
+                >
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-4 rounded-2xl min-w-[140px]">
+                        <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Total Equipes</p>
+                        <p className="text-2xl font-black text-white">{patrulhas.length}</p>
+                    </div>
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-4 rounded-2xl min-w-[140px]">
+                        <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Total Alunos</p>
+                        <p className="text-2xl font-black text-white">{members.length}</p>
+                    </div>
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-4 rounded-2xl min-w-[140px] hidden md:block">
+                        <p className="text-zinc-500 text-[10px] font-black uppercase mb-1">Votação</p>
+                        <p className={`text-sm font-black uppercase ${activeVoting ? 'text-green-500' : 'text-red-500'}`}>
+                            {activeVoting ? 'Ativa' : 'Inativa'}
+                        </p>
+                    </div>
+                </motion.div>
             </header>
 
-            <Tabs defaultValue="ranking" className="space-y-8">
-                <TabsList className="bg-zinc-900/50 p-1 border border-white/5 rounded-2xl h-16 w-full max-w-2xl">
-                    <TabsTrigger value="ranking" className="rounded-xl font-black uppercase text-xs tracking-widest flex-1 data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
-                        <Trophy className="w-4 h-4 mr-2" /> Ranking Geral
-                    </TabsTrigger>
-                    <TabsTrigger value="patrulhas" className="rounded-xl font-black uppercase text-xs tracking-widest flex-1 data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
-                        <Users className="w-4 h-4 mr-2" /> Patrulhas
-                    </TabsTrigger>
-                    <TabsTrigger value="votacao" className="rounded-xl font-black uppercase text-xs tracking-widest flex-1 data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
-                        <Vote className="w-4 h-4 mr-2" /> Votação
-                    </TabsTrigger>
-                </TabsList>
+            <main className="max-w-7xl mx-auto space-y-12">
+                <Tabs defaultValue="ranking" className="space-y-10">
+                    <TabsList className="bg-zinc-900/40 backdrop-blur-xl p-1.5 border border-white/5 rounded-2xl h-16 w-full max-w-xl mx-auto flex items-stretch">
+                        <TabsTrigger value="ranking" className="rounded-xl font-black uppercase text-[10px] tracking-widest flex-1 transition-all data-[state=active]:bg-yellow-500 data-[state=active]:text-black gap-2">
+                            <BarChart3 className="w-4 h-4" /> Ranking
+                        </TabsTrigger>
+                        <TabsTrigger value="patrulhas" className="rounded-xl font-black uppercase text-[10px] tracking-widest flex-1 transition-all data-[state=active]:bg-yellow-500 data-[state=active]:text-black gap-2">
+                            <Users className="w-4 h-4" /> Patrulhas
+                        </TabsTrigger>
+                        <TabsTrigger value="votacao" className="rounded-xl font-black uppercase text-[10px] tracking-widest flex-1 transition-all data-[state=active]:bg-yellow-500 data-[state=active]:text-black gap-2">
+                            <Vote className="w-4 h-4" /> Votação
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* --- Tab 1: Ranking Geral --- */}
-                <TabsContent value="ranking">
-                    <Card className="bg-zinc-900/30 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-sm">
-                        <CardHeader className="p-8 border-b border-white/5 bg-white/5">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    <CardTitle className="text-2xl font-black uppercase italic italic text-white">Lançamento de Pontos</CardTitle>
-                                    <CardDescription className="text-zinc-500 font-bold">Atualize as pontuações de cada modalidade em tempo real.</CardDescription>
-                                </div>
-                                <Button
-                                    onClick={saveRanking}
-                                    className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase text-xs tracking-widest rounded-xl px-6 h-12 flex items-center gap-2"
-                                >
-                                    <Save className="w-4 h-4" /> Salvar Ranking
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0 overflow-x-auto">
-                            <Table>
-                                <TableHeader className="bg-zinc-950/50">
-                                    <TableRow className="border-white/5 hover:bg-transparent">
-                                        <TableHead className="w-[200px] text-zinc-400 font-black uppercase text-[10px] tracking-widest p-6">Patrulha</TableHead>
-                                        {modalidades.map(m => (
-                                            <TableHead key={m.id} className="text-zinc-400 font-black uppercase text-[10px] tracking-widest text-center min-w-[120px]">{m.nome}</TableHead>
-                                        ))}
-                                        <TableHead className="text-yellow-400 font-black uppercase text-[10px] tracking-widest text-center min-w-[120px] bg-yellow-400/5">Total</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {patrulhas.map(p => (
-                                        <TableRow key={p.id} className="border-white/5 hover:bg-white/5 transition-colors">
-                                            <TableCell className="p-6 font-black uppercase tracking-tight flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
-                                                    <img src={p.logo_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                                {p.nome}
-                                            </TableCell>
-                                            {modalidades.map(m => (
-                                                <TableCell key={m.id} className="p-2">
-                                                    <Input
-                                                        type="number"
-                                                        value={scores[p.id]?.[m.id] || 0}
-                                                        onChange={(e) => handleScoreChange(p.id, m.id, e.target.value)}
-                                                        className="bg-zinc-950 border-white/5 text-center font-bold focus:border-yellow-400/50 rounded-lg h-10 w-full"
-                                                    />
-                                                </TableCell>
-                                            ))}
-                                            <TableCell className="text-center font-black text-xl text-yellow-400 bg-yellow-400/5">
-                                                {calculateTotal(p.id)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* --- Tab 2: Gestão de Patrulhas --- */}
-                <TabsContent value="patrulhas">
-                    <div className="grid lg:grid-cols-12 gap-8">
-                        <div className="lg:col-span-4 space-y-6">
-                            <Card className="bg-zinc-900/30 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-sm">
-                                <CardHeader className="p-8 bg-white/5 border-b border-white/5">
-                                    <CardTitle className="text-xl font-black uppercase italic text-white text-center">Selecionar Equipe</CardTitle>
+                    {/* --- TAB: RANKING --- */}
+                    <TabsContent value="ranking" className="outline-none">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                        >
+                            <Card className="bg-zinc-900/20 backdrop-blur-2xl border-white/5 rounded-[2.5rem] overflow-hidden">
+                                <CardHeader className="p-8 md:p-12 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="text-center md:text-left">
+                                        <CardTitle className="text-3xl font-black uppercase italic text-white flex items-center gap-3 justify-center md:justify-start">
+                                            <Target className="w-8 h-8 text-yellow-500" />
+                                            Gestão de Pontos
+                                        </CardTitle>
+                                        <CardDescription className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mt-2">Atribuição de pontos por modalidade esportiva</CardDescription>
+                                    </div>
+                                    <Button
+                                        onClick={saveRanking}
+                                        className="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase text-xs tracking-[0.2em] rounded-2xl px-8 h-14 transition-all shadow-lg shadow-yellow-500/10 hover:scale-105 active:scale-95 flex items-center gap-3"
+                                    >
+                                        <Save className="w-5 h-5" /> Salvar Tudo
+                                    </Button>
                                 </CardHeader>
-                                <CardContent className="p-8">
+                                <CardContent className="p-0 overflow-x-auto">
+                                    <Table>
+                                        <TableHeader className="bg-white/[0.02]">
+                                            <TableRow className="border-white/5 hover:bg-transparent">
+                                                <TableHead className="w-[280px] p-8 text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em]">Patrulha</TableHead>
+                                                {modalidades.map(m => (
+                                                    <TableHead key={m.id} className="text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[140px] px-4">{m.nome}</TableHead>
+                                                ))}
+                                                <TableHead className="text-yellow-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[140px] bg-yellow-500/5">Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <AnimatePresence>
+                                                {patrulhas.map((p, idx) => (
+                                                    <TableRow key={p.id} className="border-white/5 hover:bg-white/[0.03] transition-colors group">
+                                                        <TableCell className="p-8">
+                                                            <div className="flex items-center gap-5">
+                                                                <span className="text-zinc-700 font-black italic text-2xl group-hover:text-yellow-500 transition-colors">0{idx + 1}</span>
+                                                                <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-white/5 p-2 overflow-hidden shadow-inner shrink-0 group-hover:border-yellow-500/30 transition-all">
+                                                                    <img src={p.logo_url} alt="" className="w-full h-full object-contain" />
+                                                                </div>
+                                                                <span className="font-black uppercase tracking-tight text-lg text-white group-hover:translate-x-1 transition-transform">{p.nome}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        {modalidades.map(m => (
+                                                            <TableCell key={m.id} className="px-4 py-8">
+                                                                <div className="relative group/input">
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={scores[p.id]?.[m.id] || 0}
+                                                                        onChange={(e) => handleScoreChange(p.id, m.id, e.target.value)}
+                                                                        className="bg-zinc-950/50 border-white/5 text-center font-black focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 rounded-xl h-12 w-24 mx-auto transition-all text-white"
+                                                                    />
+                                                                </div>
+                                                            </TableCell>
+                                                        ))}
+                                                        <TableCell className="text-center font-black text-2xl text-yellow-500 bg-yellow-500/[0.03]">
+                                                            {calculateTotal(p.id)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </AnimatePresence>
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    </TabsContent>
+
+                    {/* --- TAB: PATRULHAS --- */}
+                    <TabsContent value="patrulhas" className="outline-none">
+                        <div className="grid lg:grid-cols-12 gap-8 items-start">
+                            {/* Lateral Config */}
+                            <div className="lg:col-span-4 space-y-8">
+                                {/* Selector Premium */}
+                                <Card className="bg-zinc-900/20 backdrop-blur-2xl border-white/5 rounded-[2.5rem] overflow-hidden p-8 space-y-6">
+                                    <div className="text-center">
+                                        <h3 className="text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em] mb-2">Painel de Controle</h3>
+                                        <h4 className="text-xl font-black uppercase italic text-white underline decoration-yellow-500 decoration-4 underline-offset-8">Configurar Equipe</h4>
+                                    </div>
+
                                     <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
-                                        <SelectTrigger className="w-full h-16 bg-zinc-950 border-white/5 rounded-2xl text-lg font-black uppercase tracking-tight data-[state=open]:border-yellow-400 transition-all">
-                                            <div className="flex items-center gap-3">
-                                                {selectedPatrulhaId && (
-                                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800">
-                                                        <img
-                                                            src={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url}
-                                                            alt=""
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    </div>
-                                                )}
-                                                <SelectValue placeholder="Escolha a equipe..." />
-                                            </div>
+                                        <SelectTrigger className="w-full h-20 bg-zinc-950 border-white/5 rounded-3xl text-xl font-black uppercase tracking-tighter hover:border-yellow-500 transition-all px-6 text-white text-center">
+                                            <SelectValue placeholder="Escolha a equipe" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl p-2">
+                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl overflow-hidden p-2 z-[9999]">
                                             {patrulhas.map(p => (
                                                 <SelectItem
                                                     key={p.id}
                                                     value={p.id}
-                                                    className="rounded-xl font-black uppercase tracking-tight py-4 focus:bg-yellow-400 focus:text-black data-[state=checked]:bg-yellow-400 data-[state=checked]:text-black text-white cursor-pointer group"
+                                                    className="rounded-xl font-black uppercase tracking-tight py-4 px-4 focus:bg-yellow-500 focus:text-black text-white cursor-pointer group/item mb-1"
                                                 >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800">
-                                                            <img src={p.logo_url} alt="" className="w-full h-full object-cover" />
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 p-1.5 group-focus/item:border-black/20">
+                                                            <img src={p.logo_url} alt="" className="w-full h-full object-contain" />
                                                         </div>
-                                                        <span className="text-white group-focus:text-black group-data-[state=checked]:text-black">{p.nome}</span>
+                                                        <span className="text-lg">{p.nome}</span>
                                                     </div>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                </CardContent>
-                            </Card>
 
-                            <Card className="bg-zinc-900/30 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-sm">
-                                <CardHeader className="p-8 bg-white/5 border-b border-white/5">
-                                    <CardTitle className="text-xl font-black uppercase italic text-white text-center">Logo da Patrulha</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-8 space-y-4">
-                                    <div className="w-32 h-32 mx-auto rounded-3xl bg-zinc-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group/logo">
-                                        {patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url ? (
-                                            <img
-                                                src={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url}
-                                                alt="Logo"
-                                                className="w-full h-full object-contain p-2"
-                                            />
-                                        ) : (
-                                            <div className="text-center p-4">
-                                                <Plus className="w-6 h-6 mx-auto mb-2 opacity-20" />
-                                                <span className="text-[10px] font-black opacity-20 uppercase">Sem Logo</span>
-                                            </div>
-                                        )}
-                                        {isUploading && (
-                                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                                                <Loader2 className="w-8 h-8 text-yellow-500 animate-spin" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    {/* Logo Upload Section */}
+                                    <div className="space-y-6 pt-4">
+                                        <div className="w-48 h-48 mx-auto rounded-[3rem] bg-zinc-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group/logo">
+                                            <AnimatePresence mode="wait">
+                                                {currentPatrulha?.logo_url ? (
+                                                    <motion.img
+                                                        key={currentPatrulha.logo_url}
+                                                        initial={{ opacity: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        src={currentPatrulha.logo_url}
+                                                        alt="Logo"
+                                                        className="w-full h-full object-contain p-8"
+                                                    />
+                                                ) : (
+                                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-4">
+                                                        <Plus className="w-10 h-10 mx-auto mb-4 text-zinc-800" />
+                                                        <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Aguardando Imagem</span>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                            {isUploading && (
+                                                <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
+                                                    <Loader2 className="w-10 h-10 text-yellow-500 animate-spin" />
+                                                    <span className="text-[10px] font-black text-yellow-500 uppercase animate-pulse">Enviando</span>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                    <div className="flex flex-col gap-3">
-                                        <div className="relative">
+                                        <div className="space-y-3">
                                             <input
                                                 type="file"
-                                                id="logo-upload"
+                                                id="logo-upload-btn"
                                                 className="hidden"
                                                 accept="image/*"
                                                 onChange={(e) => handleFileChange(e, selectedPatrulhaId)}
                                                 disabled={isUploading || !selectedPatrulhaId}
                                             />
                                             <Button
-                                                type="button"
+                                                onClick={() => document.getElementById('logo-upload-btn')?.click()}
                                                 disabled={isUploading || !selectedPatrulhaId}
-                                                className="w-full bg-white hover:bg-zinc-200 text-black font-black uppercase text-[10px] tracking-widest h-12 rounded-xl flex items-center justify-center gap-2"
-                                                onClick={() => document.getElementById('logo-upload')?.click()}
+                                                className="w-full bg-white hover:bg-zinc-200 text-black font-black uppercase text-[10px] tracking-[0.2em] h-14 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-white/5"
                                             >
-                                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                                Upload de Arquivo (PNG/JPG)
+                                                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                                                Trocar Identidade Visual
                                             </Button>
-                                        </div>
-
-                                        <div className="relative flex items-center">
-                                            <div className="flex-grow border-t border-white/5"></div>
-                                            <span className="flex-shrink mx-4 text-[8px] font-black text-zinc-600 uppercase">Ou use uma URL</span>
-                                            <div className="flex-grow border-t border-white/5"></div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Input
-                                                className="bg-zinc-950 border-white/5 h-12 rounded-xl text-xs"
-                                                placeholder="https://exemplo.com/logo.png"
-                                                value={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url || ''}
-                                                onChange={(e) => handleUploadLogo(selectedPatrulhaId, e.target.value)}
-                                                disabled={isUploading}
-                                            />
+                                            <p className="text-[10px] text-zinc-600 font-bold uppercase italic text-center">Fomatos Suportados: PNG, JPG, WEBP (Max 2MB)</p>
                                         </div>
                                     </div>
-                                    <p className="text-[9px] text-zinc-600 font-bold uppercase italic text-center px-1">Selecione um arquivo PNG ou JPG para atualizar a logo oficialmente.</p>
-                                </CardContent>
-                            </Card>
+                                </Card>
 
-                            <Card className="bg-yellow-400 rounded-[2.5rem] p-8 border-none overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                                    <UserPlus className="w-24 h-24 text-black" />
-                                </div>
-                                <h3 className="text-xl font-black text-black uppercase italic mb-4">Adicionar Membro</h3>
-                                <p className="text-black/70 text-sm font-bold mb-6">Insira novos alunos na patrulha {patrulhas.find(p => p.id === selectedPatrulhaId)?.nome}.</p>
-                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button className="w-full bg-black hover:bg-zinc-900 text-yellow-400 h-14 rounded-xl font-black uppercase text-xs tracking-widest">
-                                            Abrir Formulário
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="bg-zinc-950 border-white/10 text-white rounded-[2rem] max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-                                        <DialogHeader className="p-8 pb-4">
-                                            <DialogTitle className="text-2xl font-black uppercase italic text-yellow-400">Novo Membro</DialogTitle>
-                                            <CardDescription className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest">
-                                                Adicionando à equipe: <span className="text-white">{patrulhas.find(p => p.id === selectedPatrulhaId)?.nome}</span>
-                                            </CardDescription>
-                                        </DialogHeader>
+                                {/* Quick Add Member Card */}
+                                <Card className="bg-yellow-500 rounded-[2.5rem] p-10 border-none overflow-hidden group shadow-2xl shadow-yellow-500/10 relative">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all pointer-events-none">
+                                        <UserPlus className="w-32 h-32 text-black" />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <h3 className="text-2xl font-black text-black uppercase italic mb-2 leading-none">Novo Recruta</h3>
+                                        <p className="text-black/60 text-xs font-bold mb-8 uppercase tracking-widest">Vincular aluno à equipe {currentPatrulha?.nome}</p>
 
-                                        <div className="flex-1 overflow-y-auto px-8 py-4 space-y-6">
-                                            <div className="grid grid-cols-1 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">1. Selecione a Patrulha</label>
-                                                    <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
-                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl text-white">
-                                                            <SelectValue placeholder="Escolha a equipe..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-zinc-950 border-white/10 z-[100]">
-                                                            {patrulhas.map(p => (
-                                                                <SelectItem
-                                                                    key={p.id}
-                                                                    value={p.id}
-                                                                    className="text-white focus:bg-white/10 focus:text-white cursor-pointer data-[state=checked]:bg-yellow-400 data-[state=checked]:text-black"
+                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button className="w-full bg-black hover:bg-zinc-900 text-yellow-500 h-16 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-black/20 transition-all hover:scale-[1.02]">
+                                                    Lançar Inclusão
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="bg-[#0a0a0a] border-white/5 text-white rounded-[2.5rem] max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                                                <DialogHeader className="p-10 pb-6 bg-yellow-500/5">
+                                                    <DialogTitle className="text-4xl font-black uppercase italic text-white leading-none">
+                                                        <span className="text-yellow-500 italic block text-lg tracking-[0.2em] mb-2">Procedimento de</span>
+                                                        Inclusão de Membro
+                                                    </DialogTitle>
+                                                    <CardDescription className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-4 flex items-center gap-2">
+                                                        <Info className="w-4 h-4 text-yellow-500" />
+                                                        Defina a equipe e selecione os alunos marcados como ativos.
+                                                    </CardDescription>
+                                                </DialogHeader>
+
+                                                <div className="flex-1 overflow-y-auto px-10 py-6 space-y-10 custom-scrollbar">
+                                                    <div className="grid md:grid-cols-2 gap-8">
+                                                        <div className="space-y-4">
+                                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block">01. Equipe Destino</label>
+                                                            <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
+                                                                <SelectTrigger className="bg-zinc-900/50 border-white/10 h-14 rounded-2xl text-white font-black uppercase">
+                                                                    <SelectValue placeholder="Selecione..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-zinc-950 border-white/10 z-[9999]">
+                                                                    {patrulhas.map(p => (
+                                                                        <SelectItem key={p.id} value={p.id} className="text-white hover:text-yellow-500 focus:bg-yellow-500 focus:text-black font-black uppercase py-3 cursor-pointer">
+                                                                            {p.nome}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block">02. Cargo Inicial</label>
+                                                            <Select value={selectedCargo} onValueChange={setSelectedCargo}>
+                                                                <SelectTrigger className="bg-zinc-900/50 border-white/10 h-14 rounded-2xl text-white font-black uppercase">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-zinc-950 border-white/10 z-[9999]">
+                                                                    <SelectItem value="Líder" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Líder</SelectItem>
+                                                                    <SelectItem value="Vice-Líder" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Vice-Líder</SelectItem>
+                                                                    <SelectItem value="Recruta" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Recruta</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-6">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">03. Triagem de Alunos ({availableStudents.length} disponíveis)</label>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="relative w-64 group">
+                                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-yellow-500 transition-colors" />
+                                                                    <Input
+                                                                        className="bg-zinc-900/50 border-white/5 pl-12 h-12 rounded-2xl focus:border-yellow-500/50 text-xs text-white"
+                                                                        placeholder="Buscar Guerra ou Matricula..."
+                                                                        value={studentSearch}
+                                                                        onChange={(e) => setStudentSearch(e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                {selectedStudentIds.length > 0 && (
+                                                                    <Button variant="ghost" onClick={() => setSelectedStudentIds([])} className="text-red-500 text-[10px] font-black uppercase hover:bg-red-500/10">Limpar</Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-8">
+                                                            {availableStudents.slice(0, 40).map(s => (
+                                                                <motion.div
+                                                                    whileHover={{ scale: 1.02 }}
+                                                                    whileTap={{ scale: 0.98 }}
+                                                                    key={s.id}
+                                                                    onClick={() => {
+                                                                        setSelectedStudentIds(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]);
+                                                                    }}
+                                                                    className={`p-4 rounded-3xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${selectedStudentIds.includes(s.id)
+                                                                        ? 'bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/10'
+                                                                        : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-zinc-900/50'
+                                                                        }`}
                                                                 >
-                                                                    {p.nome}
-                                                                </SelectItem>
+                                                                    <div className="flex items-center gap-4 min-w-0">
+                                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 ${selectedStudentIds.includes(s.id) ? 'bg-black text-yellow-500' : 'bg-zinc-800 text-zinc-500'
+                                                                            }`}>
+                                                                            {s.nome_guerra?.charAt(0) || '?'}
+                                                                        </div>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            <span className="font-black uppercase text-xs tracking-tight truncate">{s.nome_guerra || s.nome_completo.split(' ')[0]}</span>
+                                                                            <span className={`text-[9px] font-bold uppercase opacity-50 ${selectedStudentIds.includes(s.id) ? 'text-black' : 'text-zinc-600'}`}>{s.matricula_pfm || 'SEM MAT'}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    {selectedStudentIds.includes(s.id) && <CheckCircle2 className="w-5 h-5 text-black shrink-0" />}
+                                                                </motion.div>
                                                             ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">2. Busca Rápida de Alunos Disponíveis</label>
-                                                    <div className="relative">
-                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                                        <Input
-                                                            className="bg-zinc-900 border-white/10 pl-11 h-12 rounded-xl focus:border-yellow-400"
-                                                            placeholder="Nome ou Matrícula..."
-                                                            value={studentSearch}
-                                                            onChange={(e) => setStudentSearch(e.target.value)}
-                                                        />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selecione os Alunos ({selectedStudentIds.length} selecionados)</label>
+                                                <DialogFooter className="p-10 pt-6 bg-white/[0.02] border-t border-white/5">
                                                     <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-[9px] font-black uppercase text-zinc-500 hover:text-white"
-                                                        onClick={() => setSelectedStudentIds([])}
+                                                        onClick={confirmInclusion}
+                                                        disabled={addingMember || selectedStudentIds.length === 0}
+                                                        className="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase text-sm tracking-[0.3em] w-full h-16 rounded-3xl shadow-2xl shadow-yellow-500/20 disabled:opacity-50 transition-all hover:scale-[1.01]"
                                                     >
-                                                        Limpar Seleção
+                                                        {addingMember ? <Loader2 className="animate-spin" /> : `Habilitar ${selectedStudentIds.length} Aluno(s)`}
                                                     </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* Members Table */}
+                            <div className="lg:col-span-8">
+                                <Card className="bg-zinc-900/20 backdrop-blur-2xl border-white/5 rounded-[3rem] overflow-hidden">
+                                    <div className="p-10 md:p-14 bg-white/[0.01] border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-16 h-16 rounded-[1.5rem] bg-zinc-950 border border-white/5 p-3 shrink-0">
+                                                    <img src={currentPatrulha?.logo_url} className="w-full h-full object-contain" alt="" />
                                                 </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {availableStudents.slice(0, 30).map(s => (
-                                                        <div
-                                                            key={s.id}
-                                                            onClick={() => {
-                                                                if (selectedStudentIds.includes(s.id)) {
-                                                                    setSelectedStudentIds(selectedStudentIds.filter(id => id !== s.id));
-                                                                } else {
-                                                                    setSelectedStudentIds([...selectedStudentIds, s.id]);
-                                                                }
-                                                            }}
-                                                            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${selectedStudentIds.includes(s.id)
-                                                                ? 'bg-yellow-400/10 border-yellow-400 text-yellow-400'
-                                                                : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/10'
-                                                                }`}
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${selectedStudentIds.includes(s.id) ? 'bg-yellow-400 text-black' : 'bg-zinc-800'
-                                                                    }`}>
-                                                                    {s.nome_guerra?.charAt(0) || s.nome_completo.charAt(0)}
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-black uppercase text-xs tracking-tight">{s.nome_guerra || s.nome_completo.split(' ')[0]}</span>
-                                                                    <span className="text-[9px] font-bold opacity-50 uppercase">{s.matricula_pfm || 'SEM MATRÍCULA'}</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedStudentIds.includes(s.id) ? 'bg-yellow-400 border-yellow-400' : 'border-white/10 bg-zinc-950'
-                                                                }`}>
-                                                                {selectedStudentIds.includes(s.id) && <Plus className="w-3 h-3 text-black" />}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {availableStudents.length === 0 && (
-                                                        <div className="py-10 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">
-                                                            Nenhum aluno livre encontrado
-                                                        </div>
-                                                    )}
+                                                <div>
+                                                    <h2 className="text-3xl font-black uppercase leading-none text-white tracking-tighter">
+                                                        Integrantes: <span className="text-yellow-500 italic">{currentPatrulha?.nome}</span>
+                                                    </h2>
+                                                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-[0.3em] mt-3 flex items-center gap-2">
+                                                        <Users className="w-4 h-4 text-yellow-500/50" />
+                                                        Efetivo total de {members.filter(m => m.patrulha_id === selectedPatrulhaId).length} membros ativos
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <DialogFooter className="p-8 pt-4 bg-white/5">
-                                            <Button
-                                                onClick={confirmInclusion}
-                                                disabled={addingMember || selectedStudentIds.length === 0}
-                                                className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase text-xs tracking-widest w-full h-14 rounded-xl shadow-xl shadow-yellow-400/10 disabled:opacity-50"
-                                            >
-                                                {addingMember ? 'Salvando...' : `Confirmar Inclusão (${selectedStudentIds.length})`}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </Card>
-                        </div>
-
-                        <div className="lg:col-span-8">
-                            <Card className="bg-zinc-900/30 border-white/5 rounded-[3rem] overflow-hidden">
-                                <CardHeader className="p-10 bg-white/5 border-b border-white/5 flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-2xl font-black uppercase italic text-white">
-                                            Membros: <span className="text-yellow-400">{patrulhas.find(p => p.id === selectedPatrulhaId)?.nome}</span>
-                                        </CardTitle>
-                                        <CardDescription className="text-zinc-500">Gerencie a hierarquia e os participantes da equipe.</CardDescription>
+                                        <Badge className="bg-zinc-950 text-yellow-500 border border-yellow-500/20 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                                            Patrulha Homologada
+                                        </Badge>
                                     </div>
-                                    <Badge className="bg-zinc-950 text-zinc-400 border-white/5 px-4 py-2 font-black">
-                                        {members.filter(m => m.patrulha_id === selectedPatrulhaId).length} ALUNOS
-                                    </Badge>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <Table>
-                                        <TableBody>
-                                            {members
-                                                .filter(m => m.patrulha_id === selectedPatrulhaId)
-                                                .sort((a, b) => {
-                                                    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                                                    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                                                    return dateA - dateB;
-                                                }) // Sort Oldest -> Newest (Ascending)
-                                                .map(member => (
-                                                    <TableRow key={member.id} className="border-white/5 hover:bg-white/5 transition-colors group">
-                                                        <TableCell className="p-8">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg ${member.cargo !== 'Recruta' ? 'bg-yellow-400 text-black' : 'bg-zinc-950 text-zinc-500'
-                                                                    }`}>
-                                                                    {member.nome_guerra.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="font-black uppercase tracking-tight text-lg text-white group-hover:text-yellow-400 transition-colors">
-                                                                        {member.nome_guerra}
-                                                                    </h4>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">MAT: {member.matricula}</span>
-                                                                        {member.cargo !== 'Recruta' && (
-                                                                            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-yellow-400/10 text-yellow-400 text-[9px] font-black uppercase tracking-widest rounded-md border border-yellow-400/20">
-                                                                                <Crown className="w-3 h-3" /> {member.cargo}
+                                    <CardContent className="p-0">
+                                        <Table>
+                                            <TableBody>
+                                                <AnimatePresence>
+                                                    {members
+                                                        .filter(m => m.patrulha_id === selectedPatrulhaId)
+                                                        .sort((a, b) => {
+                                                            const d1 = a.created_at ? new Date(a.created_at).getTime() : 0;
+                                                            const d2 = b.created_at ? new Date(b.created_at).getTime() : 0;
+                                                            return d1 - d2;
+                                                        })
+                                                        .map((member, idx) => (
+                                                            <TableRow key={member.id} className="border-white/5 hover:bg-white/[0.02] transition-all group">
+                                                                <TableCell className="p-10">
+                                                                    <div className="flex items-center gap-8">
+                                                                        <div className="relative">
+                                                                            <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center font-black text-3xl shadow-2xl transition-all group-hover:rotate-6 ${member.cargo !== 'Recruta'
+                                                                                ? 'bg-yellow-500 text-black'
+                                                                                : 'bg-zinc-900 border border-white/5 text-zinc-500'
+                                                                                }`}>
+                                                                                {member.nome_guerra?.charAt(0) || '?'}
+                                                                            </div>
+                                                                            <span className="absolute -top-2 -right-2 bg-zinc-950 text-zinc-500 w-8 h-8 rounded-full border border-white/10 flex items-center justify-center font-black text-[10px] tracking-tighter italic">
+                                                                                #{idx + 1}
                                                                             </span>
-                                                                        )}
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <h4 className="font-black uppercase tracking-tight text-2xl text-white group-hover:text-yellow-500 transition-colors">
+                                                                                {member.nome_guerra}
+                                                                            </h4>
+                                                                            <div className="flex flex-wrap items-center gap-4">
+                                                                                <span className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] bg-white/[0.02] px-3 py-1 rounded-lg border border-white/5">
+                                                                                    Registro: {member.matricula}
+                                                                                </span>
+                                                                                {member.cargo !== 'Recruta' && (
+                                                                                    <span className="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg border border-yellow-500/20">
+                                                                                        <Crown className="w-3.5 h-3.5" /> {member.cargo}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right p-10">
+                                                                    <div className="flex items-center justify-end gap-6">
+                                                                        <div className="flex items-center bg-zinc-950 p-2 rounded-2xl border border-white/5 shadow-inner">
+                                                                            <button
+                                                                                onClick={() => updateMemberRole(member.id, 'Líder')}
+                                                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${member.cargo === 'Líder' ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'text-zinc-600 hover:text-white'}`}
+                                                                            >
+                                                                                Líder
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => updateMemberRole(member.id, 'Vice-Líder')}
+                                                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${member.cargo === 'Vice-Líder' ? 'bg-zinc-700 text-white' : 'text-zinc-600 hover:text-white'}`}
+                                                                            >
+                                                                                Vice
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => updateMemberRole(member.id, 'Recruta')}
+                                                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${member.cargo === 'Recruta' ? 'bg-zinc-800 text-zinc-400' : 'text-zinc-600 hover:text-white'}`}
+                                                                            >
+                                                                                Recruta
+                                                                            </button>
+                                                                        </div>
+                                                                        <Button
+                                                                            onClick={() => removeMember(member.id)}
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="w-14 h-14 rounded-2xl text-zinc-700 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90"
+                                                                        >
+                                                                            <Trash2 className="w-6 h-6" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                </AnimatePresence>
+                                                {members.filter(m => m.patrulha_id === selectedPatrulhaId).length === 0 && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="py-32 text-center">
+                                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-6">
+                                                                <div className="w-24 h-24 rounded-[2.5rem] bg-zinc-900 border border-white/5 flex items-center justify-center grayscale opacity-30">
+                                                                    <Users className="w-10 h-10" />
                                                                 </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right p-8">
-                                                            <div className="flex items-center justify-end gap-3">
-                                                                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-white/5 mr-2">
-                                                                    <button
-                                                                        onClick={() => updateMemberRole(member.id, 'Líder')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Líder' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-zinc-600 hover:text-white'}`}
-                                                                    >
-                                                                        Líder
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => updateMemberRole(member.id, 'Vice-Líder')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Vice-Líder' ? 'bg-zinc-500 text-white shadow-lg' : 'text-zinc-600 hover:text-white'}`}
-                                                                    >
-                                                                        Vice
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => updateMemberRole(member.id, 'Recruta')}
-                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Recruta' ? 'bg-zinc-800 text-zinc-400' : 'text-zinc-600 hover:text-white'}`}
-                                                                    >
-                                                                        Recruta
-                                                                    </button>
+                                                                <div className="space-y-2">
+                                                                    <p className="font-black uppercase tracking-[0.4em] text-xs text-zinc-500">Unidade Vazia</p>
+                                                                    <p className="text-zinc-700 text-[10px] font-bold uppercase tracking-widest italic">Aguardando alocação de novos cadetes</p>
                                                                 </div>
-                                                                <Button
-                                                                    onClick={() => removeMember(member.id)}
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
+                                                            </motion.div>
                                                         </TableCell>
                                                     </TableRow>
-                                                ))}
-                                            {members.filter(m => m.patrulha_id === selectedPatrulhaId).length === 0 && (
-                                                <TableRow>
-                                                    <TableCell colSpan={2} className="p-20 text-center">
-                                                        <div className="flex flex-col items-center gap-4 grayscale opacity-20">
-                                                            <Users className="w-16 h-16" />
-                                                            <p className="font-black uppercase tracking-widest text-xs">Nenhum membro cadastrado</p>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            </div>
                         </div>
-                    </div>
-                </TabsContent>
+                    </TabsContent>
 
-                {/* --- Tab 3: Gestão de Votação --- */}
-                <TabsContent value="votacao">
-                    <div className="grid lg:grid-cols-12 gap-8">
-                        <div className="lg:col-span-7 space-y-8">
-                            <Card className="bg-zinc-900/30 border-white/5 rounded-[3rem] overflow-hidden">
-                                <CardHeader className="p-10 bg-white/5 border-b border-white/5">
-                                    <div className="flex items-center gap-4 mb-2">
-                                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                                            <Settings className="w-5 h-5 text-violet-400" />
+                    {/* --- TAB: VOTACAO --- */}
+                    <TabsContent value="votacao" className="outline-none">
+                        <div className="grid lg:grid-cols-12 gap-8 items-start">
+                            <div className="lg:col-span-7 space-y-8">
+                                <Card className="bg-zinc-900/20 backdrop-blur-2xl border-white/5 rounded-[3rem] overflow-hidden">
+                                    <CardHeader className="p-10 md:p-14 bg-white/[0.01] border-b border-white/5">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-12 h-12 bg-yellow-500 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/20">
+                                                <Vote className="w-6 h-6 text-black" />
+                                            </div>
+                                            <CardTitle className="text-3xl font-black uppercase italic text-white leading-none">Status da Campanha</CardTitle>
                                         </div>
-                                        <CardTitle className="text-2xl font-black uppercase italic text-white tracking-tight">Configurar Campanha</CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-10 space-y-8">
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                                                <Timer className="w-3.5 h-3.5" /> Título da Votação
-                                            </label>
-                                            <Input
-                                                value={votingTitle}
-                                                onChange={(e) => setVotingTitle(e.target.value)}
-                                                className="bg-zinc-950 border-white/10 h-14 rounded-xl focus:border-yellow-400"
-                                            />
+                                        <CardDescription className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest ml-16 italic">Configuração e acompanhamento da votação de popularidade</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-10 md:p-14 space-y-10">
+                                        {/* Configuration Grid */}
+                                        <div className="grid md:grid-cols-2 gap-8">
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Título da Votação</label>
+                                                <Input
+                                                    value={votingTitle}
+                                                    onChange={(e) => setVotingTitle(e.target.value)}
+                                                    className="bg-zinc-950 border-white/5 h-16 rounded-2xl font-black uppercase text-sm focus:border-yellow-500 transition-all text-white px-6"
+                                                    placeholder="EX: CEPEF 2026 - SEMANA 01"
+                                                />
+                                            </div>
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Votos Atuais</label>
+                                                <div className="bg-zinc-950 border border-white/5 h-16 rounded-2xl flex items-center px-6 text-xl font-black text-yellow-500 tabular-nums shadow-inner">
+                                                    {Object.values(votosContabilizados).reduce((a, b) => a + b, 0)} <span className="text-[10px] text-zinc-700 ml-3 uppercase tracking-widest font-bold">Total Computado</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                                                <Calendar className="w-3.5 h-3.5" /> Início
-                                            </label>
-                                            <Input
-                                                type="datetime-local"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                className="bg-zinc-950 border-white/10 h-14 rounded-xl focus:border-yellow-400"
-                                            />
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                                                <Calendar className="w-3.5 h-3.5" /> Término
-                                            </label>
-                                            <Input
-                                                type="datetime-local"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                className="bg-zinc-950 border-white/10 h-14 rounded-xl focus:border-yellow-400"
-                                            />
-                                        </div>
-                                    </div>
 
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                                                <Instagram className="w-3.5 h-3.5" /> Parceiros de Validação
-                                            </label>
+                                        <div className="grid md:grid-cols-2 gap-8">
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Início Previsto</label>
+                                                <Input
+                                                    type="datetime-local"
+                                                    value={startDate}
+                                                    onChange={(e) => setStartDate(e.target.value)}
+                                                    className="bg-zinc-950 border-white/5 h-16 rounded-2xl font-black uppercase text-xs focus:border-yellow-500 transition-all text-white px-6"
+                                                />
+                                            </div>
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Encerramento</label>
+                                                <Input
+                                                    type="datetime-local"
+                                                    value={endDate}
+                                                    onChange={(e) => setEndDate(e.target.value)}
+                                                    className="bg-zinc-950 border-white/5 h-16 rounded-2xl font-black uppercase text-xs focus:border-yellow-500 transition-all text-white px-6"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <Separator className="bg-white/5" />
+
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-8 pt-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-4 h-4 rounded-full animate-pulse ${activeVoting ? 'bg-green-500 shadow-[0_0_15px_#22c55e]' : 'bg-red-500'}`} />
+                                                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">
+                                                    Sistema {activeVoting ? 'Operando' : 'Em Standby'}
+                                                </span>
+                                            </div>
                                             <Button
-                                                onClick={() => setInstaLinks([...instaLinks, { nome: '', link: '' }])}
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-yellow-400 font-black uppercase text-[9px] tracking-widest"
+                                                onClick={async () => {
+                                                    try {
+                                                        await supabase.from("cepfm_votacoes").update({ ativa: false }).eq("ativa", true);
+                                                        const { data, error } = await supabase.from("cepfm_votacoes").insert({
+                                                            titulo: votingTitle,
+                                                            data_inicio: new Date(startDate).toISOString(),
+                                                            data_fim: new Date(endDate).toISOString(),
+                                                            ativa: true,
+                                                            parceiros_instagram: instaLinks
+                                                        }).select().single();
+                                                        if (error) throw error;
+                                                        toast.success("Campanha Iniciada!");
+                                                        setActiveVoting(data);
+                                                        fetchBaseData();
+                                                    } catch (e) {
+                                                        toast.error("Falha ao lançar votação");
+                                                    }
+                                                }}
+                                                className="bg-white hover:bg-zinc-100 text-black font-black uppercase text-xs tracking-[0.3em] h-16 px-12 rounded-2xl shadow-2xl shadow-white/5 transition-all active:scale-95"
                                             >
-                                                + ADICIONAR LINK
+                                                Lançar Nova Campanha
                                             </Button>
                                         </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
 
-                                        <div className="space-y-4">
-                                            {instaLinks.map((item, i) => (
-                                                <div key={i} className="flex gap-4">
+                            {/* Social / Partners Panel */}
+                            <div className="lg:col-span-5 space-y-8">
+                                <Card className="bg-zinc-900/20 backdrop-blur-2xl border-white/5 rounded-[3rem] overflow-hidden p-10 md:p-14">
+                                    <div className="flex items-center gap-4 mb-8">
+                                        <Instagram className="w-8 h-8 text-pink-500" />
+                                        <h3 className="text-xl font-black uppercase italic text-white leading-none">Social Hub</h3>
+                                    </div>
+                                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-10 leading-relaxed">Gerencie os links patrocinados e parceiros oficiais que aparecerão na interface de votação dos alunos.</p>
+
+                                    <div className="space-y-6">
+                                        {instaLinks.map((link, i) => (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: 10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                key={i}
+                                                className="flex items-center gap-4 bg-zinc-950/50 p-6 rounded-3xl border border-white/5"
+                                            >
+                                                <div className="flex-1 space-y-4">
                                                     <Input
-                                                        placeholder="Nome (Ex: @pfm.oficial)"
-                                                        className="bg-zinc-950 border-white/10 h-14 rounded-xl flex-1 focus:border-yellow-400"
-                                                        value={item.nome}
+                                                        className="bg-black/40 border-white/5 h-12 rounded-xl text-xs text-white"
+                                                        placeholder="NOME DO PARCEIRO"
+                                                        value={link.nome}
                                                         onChange={(e) => {
                                                             const newLinks = [...instaLinks];
-                                                            newLinks[i].nome = e.target.value;
+                                                            newLinks[i].nome = e.target.value.toUpperCase();
                                                             setInstaLinks(newLinks);
                                                         }}
                                                     />
                                                     <Input
-                                                        placeholder="Link do Instagram"
-                                                        className="bg-zinc-950 border-white/10 h-14 rounded-xl flex-[2] focus:border-yellow-400"
-                                                        value={item.link}
+                                                        className="bg-black/40 border-white/5 h-12 rounded-xl text-[10px] text-zinc-500"
+                                                        placeholder="LINK DO INSTAGRAM"
+                                                        value={link.link}
                                                         onChange={(e) => {
                                                             const newLinks = [...instaLinks];
                                                             newLinks[i].link = e.target.value;
                                                             setInstaLinks(newLinks);
                                                         }}
                                                     />
-                                                    <Button
-                                                        onClick={() => setInstaLinks(instaLinks.filter((_, idx) => idx !== i))}
-                                                        variant="ghost" size="icon" className="h-14 w-14 rounded-xl border border-white/5 hover:bg-red-500/10 text-zinc-600 hover:text-red-500"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="w-12 h-12 rounded-2xl text-zinc-700 hover:text-red-500 hover:bg-red-500/10 shrink-0"
+                                                    onClick={() => setInstaLinks(instaLinks.filter((_, idx) => idx !== i))}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            </motion.div>
+                                        ))}
 
-                                    <div className="pt-6 border-t border-white/5">
                                         <Button
-                                            onClick={launchVoting}
-                                            className="w-full bg-yellow-400 hover:bg-yellow-500 text-black h-16 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-yellow-400/10"
+                                            variant="outline"
+                                            className="w-full h-16 border-white/5 bg-zinc-950/30 hover:bg-white/[0.05] rounded-3xl font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-4 text-zinc-500 hover:text-white transition-all border-dashed"
+                                            onClick={() => setInstaLinks([...instaLinks, { nome: '', link: '' }])}
                                         >
-                                            Lançar Nova Votação
+                                            <Plus className="w-4 h-4" />
+                                            Acoplar Novo Parceiro
                                         </Button>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </Card>
+                            </div>
                         </div>
+                    </TabsContent>
+                </Tabs>
+            </main>
 
-                        <div className="lg:col-span-5 space-y-8">
-                            <Card className="bg-zinc-900/40 border-white/5 rounded-[3rem] p-10 backdrop-blur-md relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:scale-110 transition-transform">
-                                    <TrendingUp className="w-48 h-48" />
-                                </div>
-                                <div className="relative z-10 space-y-8">
-                                    <div>
-                                        <h3 className="text-2xl font-black uppercase italic text-white tracking-tight">Status em Tempo Real</h3>
-                                        <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mt-1">Apuração de votos atualizada</p>
-                                    </div>
-
-                                    <div className="space-y-8">
-                                        {patrulhas.map((p, i) => (
-                                            <div key={p.id} className="space-y-3">
-                                                <div className="flex items-center justify-between font-black uppercase tracking-widest text-[10px]">
-                                                    <span className="text-white flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-yellow-400" /> {p.nome}
-                                                    </span>
-                                                    <span className="text-yellow-400">{votosContabilizados[p.id] || 0} votos</span>
-                                                </div>
-                                                <div className="h-2.5 bg-zinc-950 rounded-full overflow-hidden border border-white/5 p-[1.5px]">
-                                                    <motion.div
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${Math.min(100, (votosContabilizados[p.id] || 0) / 10)}%` }}
-                                                        className="h-full bg-gradient-to-r from-yellow-500 to-yellow-300 rounded-full"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="pt-6 border-t border-white/5">
-                                        <div className="flex items-center gap-3 p-4 bg-zinc-950 rounded-2xl border border-white/5">
-                                            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                                                <Save className="w-5 h-5 text-green-500" />
-                                            </div>
-                                            <div>
-                                                <h5 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 font-black">Liderança Atual</h5>
-                                                <p className="text-sm font-black text-white italic">
-                                                    {Object.entries(votosContabilizados).sort((a, b) => b[1] - a[1])[0]
-                                                        ? `${patrulhas.find(p => p.id === Object.entries(votosContabilizados).sort((a, b) => b[1] - a[1])[0][0])?.nome} (+${Object.entries(votosContabilizados).sort((a, b) => b[1] - a[1])[0][1]} Votos)`
-                                                        : "Aguardando Votos"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
+            <footer className="max-w-7xl mx-auto mt-32 pb-12 border-t border-white/5 pt-12 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-8 opacity-40">
+                <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500">© 2026 Forças Mirins Maranhão</p>
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-700">Desenvolvido com tecnologia de ponta para gestão esportiva</p>
+                </div>
+                <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Servidores Seguros</span>
                     </div>
-                </TabsContent>
-            </Tabs>
+                </div>
+            </footer>
         </div>
     );
 }
