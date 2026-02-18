@@ -40,7 +40,12 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { supabase } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 // --- Types ---
 interface Patrulha {
