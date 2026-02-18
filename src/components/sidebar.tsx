@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Users, 
-  ShieldCheck, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  ShieldCheck,
+  Settings,
   LogOut,
   CalendarCheck,
   FileSpreadsheet,
@@ -24,12 +24,13 @@ import {
   ClipboardEdit,
   Key,
   ChevronRight,
-    Heart,
-    Shirt,
-    Package as InventoryIcon,
-    FileSignature,
-    FileText
-  } from "lucide-react";
+  Heart,
+  Shirt,
+  Package as InventoryIcon,
+  FileSignature,
+  FileText,
+  Trophy
+} from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -39,24 +40,24 @@ const navSections = [
   {
     label: "Início",
     items: [
-        {
-          title: "Início",
-          href: "/aluno",
-          icon: LayoutDashboard,
-          allowedRoles: ["aluno", "student"],
-        },
-        {
-          title: "Início",
-          href: "/responsavel/inicio",
-          icon: LayoutDashboard,
-          allowedRoles: ["guardian", "responsavel"],
-        },
-        {
-          title: "Dashboard",
-          href: "/dashboard",
-          icon: LayoutDashboard,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
-        },
+      {
+        title: "Início",
+        href: "/aluno",
+        icon: LayoutDashboard,
+        allowedRoles: ["aluno", "student"],
+      },
+      {
+        title: "Início",
+        href: "/responsavel/inicio",
+        icon: LayoutDashboard,
+        allowedRoles: ["guardian", "responsavel"],
+      },
+      {
+        title: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+      },
       {
         title: "Selecionar Aluno",
         href: "/selecionar-aluno",
@@ -84,22 +85,22 @@ const navSections = [
         title: "Pré-Matrículas",
         href: "/pre-matriculas",
         icon: FileSpreadsheet,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
       },
-        {
-          title: "Alunos",
-          href: "/alunos",
-          icon: Users,
-            allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+      {
+        title: "Alunos",
+        href: "/alunos",
+        icon: Users,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
-        },
-        {
-          title: "Solicitações",
-          href: "/solicitacoes",
-          icon: ClipboardEdit,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
-        },
+      },
+      {
+        title: "Solicitações",
+        href: "/solicitacoes",
+        icon: ClipboardEdit,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
+      },
       {
         title: "Instrutores",
         href: "/instrutores",
@@ -117,78 +118,78 @@ const navSections = [
   {
     label: "Controle Diário",
     items: [
-        {
-          title: "Frequência",
-          href: "/frequencia",
-          icon: CalendarCheck,
-            allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+      {
+        title: "Frequência",
+        href: "/frequencia",
+        icon: CalendarCheck,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
-        },
-        {
-          title: "Saúde PFM",
-          href: "/saude-pfm",
-          icon: Heart,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor", "guardian", "responsavel", "aluno", "student"],
-        },
-          {
-            title: "Reunião de Pais",
-          href: "/reuniao-pais",
-          icon: Users,
-            allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+      },
+      {
+        title: "Saúde PFM",
+        href: "/saude-pfm",
+        icon: Heart,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor", "guardian", "responsavel", "aluno", "student"],
+      },
+      {
+        title: "Reunião de Pais",
+        href: "/reuniao-pais",
+        icon: Users,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
-        },
-            {
-              title: "Doação",
-              href: "/doacao",
-              icon: Heart,
-              allowedRoles: ["admin", "instrutor", "coord_geral", "coord_nucleo"],
-            },
-            {
-              title: "Doação de Material",
-              href: "/doacao-material",
-              icon: InventoryIcon,
-            allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
-          },
+      },
+      {
+        title: "Doação",
+        href: "/doacao",
+        icon: Heart,
+        allowedRoles: ["admin", "instrutor", "coord_geral", "coord_nucleo"],
+      },
+      {
+        title: "Doação de Material",
+        href: "/doacao-material",
+        icon: InventoryIcon,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+      },
       {
         title: "Pedido de Fardamento",
         href: "/pedido-fardamento",
         icon: Shirt,
         allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
       },
-{
+      {
         title: "Comportamento",
         href: "/comportamento",
-      icon: Medal,
+        icon: Medal,
         allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
-    },
-  ]
-},
-{
-  label: "Assinaturas Digitais",
-  items: [
-    {
-      title: "Gerenciar Assinaturas",
-      href: "/cadastro-assinatura",
-      icon: FileSignature,
-      allowedRoles: ["admin", "coord_geral", "instrutor"],
-    },
-    {
-      title: "Minha Assinatura",
-      href: "/cadastro-assinatura",
-      icon: FileSignature,
-      allowedRoles: ["guardian", "responsavel"],
-    },
-    {
-      title: "Termos Assinados",
-      href: "/assinaturas",
-      icon: FileText,
-      allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
-    },
-  ]
-},
-{
-  label: "Pedagógico",
+      },
+    ]
+  },
+  {
+    label: "Assinaturas Digitais",
+    items: [
+      {
+        title: "Gerenciar Assinaturas",
+        href: "/cadastro-assinatura",
+        icon: FileSignature,
+        allowedRoles: ["admin", "coord_geral", "instrutor"],
+      },
+      {
+        title: "Minha Assinatura",
+        href: "/cadastro-assinatura",
+        icon: FileSignature,
+        allowedRoles: ["guardian", "responsavel"],
+      },
+      {
+        title: "Termos Assinados",
+        href: "/assinaturas",
+        icon: FileText,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
+      },
+    ]
+  },
+  {
+    label: "Pedagógico",
     items: [
       {
         title: "Materiais de Estudo",
@@ -223,7 +224,7 @@ const navSections = [
         title: "Gestão de Denúncias",
         href: "/denuncias",
         icon: Megaphone,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
 
       },
       {
@@ -232,19 +233,20 @@ const navSections = [
         icon: Megaphone,
         allowedRoles: ["guardian", "responsavel"],
       },
-        {
-          title: "Denúncias",
-          href: "/aluno/denuncias",
-          allowedRoles: ["aluno", "student"],
-        },
-        {
-          title: "Avisos e Comunicados",
-          href: "/avisos",
-          icon: Megaphone,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor", "guardian", "responsavel", "aluno", "student"],
-        },
-        {
-          title: "Alteração de Dados",
+      {
+        title: "Denúncias",
+        href: "/aluno/denuncias",
+        icon: Megaphone,
+        allowedRoles: ["aluno", "student"],
+      },
+      {
+        title: "Avisos e Comunicados",
+        href: "/avisos",
+        icon: Megaphone,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor", "guardian", "responsavel", "aluno", "student"],
+      },
+      {
+        title: "Alteração de Dados",
         href: "/solicitar-alteracao",
         icon: ClipboardEdit,
         allowedRoles: ["guardian", "responsavel"],
@@ -260,17 +262,34 @@ const navSections = [
         icon: Database,
         allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
       },
-        {
-          title: "Gerenciar Contas",
-          href: "/gerenciar-contas",
-          icon: Key,
-          allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
-        },
+      {
+        title: "Gerenciar Contas",
+        href: "/gerenciar-contas",
+        icon: Key,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
+      },
       {
         title: "Configurações",
         href: "/configuracoes",
         icon: Settings,
         allowedRoles: ["admin", "coord_geral", "coord_nucleo"],
+      },
+    ]
+  },
+  {
+    label: "Eventos",
+    items: [
+      {
+        title: "CEPFM 2026",
+        href: "/cepfm2026",
+        icon: Trophy,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor", "guardian", "responsavel", "aluno", "student"],
+      },
+      {
+        title: "Gerenciar CEPFM",
+        href: "/cepfmgerenciar",
+        icon: ClipboardEdit,
+        allowedRoles: ["admin", "coord_geral", "coord_nucleo", "instrutor"],
       },
     ]
   },
@@ -284,12 +303,12 @@ interface SidebarProps {
   onCloseMobile?: () => void;
 }
 
-export function Sidebar({ 
-  isCollapsed, 
-  onToggle, 
-  isMobile = false, 
-  isMobileMenuOpen = false, 
-  onCloseMobile 
+export function Sidebar({
+  isCollapsed,
+  onToggle,
+  isMobile = false,
+  isMobileMenuOpen = false,
+  onCloseMobile
 }: SidebarProps) {
   const { profile, simulatedRole, signOut } = useAuth();
   const pathname = usePathname();
@@ -309,7 +328,7 @@ export function Sidebar({
         .from("data_update_requests")
         .select("*", { count: 'exact', head: true })
         .eq("status", "pendente");
-      
+
       if (!error && count !== null) {
         setPendingRequests(count);
       }
@@ -324,7 +343,7 @@ export function Sidebar({
         .from("denuncias")
         .select("*", { count: 'exact', head: true })
         .eq("status", "pendente");
-      
+
       if (!error && count !== null) {
         setPendingDenuncias(count);
       }
@@ -357,7 +376,7 @@ export function Sidebar({
         )}
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         initial={false}
         animate={isMobile ? "mobile" : "desktop"}
         variants={sidebarVariants}
@@ -371,48 +390,48 @@ export function Sidebar({
           "relative p-6 flex items-center justify-between",
           (isCollapsed && !isMobile) && "px-3 justify-center"
         )}>
-            <div className="absolute inset-0 bg-gradient-to-b from-violet-500/10 via-transparent to-transparent pointer-events-none" />
-            
-            <AnimatePresence mode="wait">
-              {(!isCollapsed || isMobile) ? (
-                <motion.div
-                  key="logo-full"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="flex items-center gap-3 relative z-10"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] group cursor-pointer overflow-hidden relative">
-                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Shield className="w-5 h-5 text-white relative z-10" />
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5 leading-none">
-                      <h1 className="text-xl font-black text-white tracking-tighter">PFM</h1>
-                      <span className="text-xl font-black text-violet-400 tracking-tighter">Digital</span>
-                    </div>
-                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-[0.25em] mt-1">Polícia Forças Mirins</p>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="logo-collapsed"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="w-12 h-12 bg-gradient-to-br from-violet-400 to-violet-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] cursor-pointer group relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Shield className="text-white w-6 h-6 relative z-10" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-b from-violet-500/10 via-transparent to-transparent pointer-events-none" />
 
-          
+          <AnimatePresence mode="wait">
+            {(!isCollapsed || isMobile) ? (
+              <motion.div
+                key="logo-full"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex items-center gap-3 relative z-10"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] group cursor-pointer overflow-hidden relative">
+                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Shield className="w-5 h-5 text-white relative z-10" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5 leading-none">
+                    <h1 className="text-xl font-black text-white tracking-tighter">PFM</h1>
+                    <span className="text-xl font-black text-violet-400 tracking-tighter">Digital</span>
+                  </div>
+                  <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-[0.25em] mt-1">Polícia Forças Mirins</p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="logo-collapsed"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="w-12 h-12 bg-gradient-to-br from-violet-400 to-violet-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] cursor-pointer group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Shield className="text-white w-6 h-6 relative z-10" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+
           {!isMobile && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onToggle}
               className={cn(
                 "text-zinc-500 hover:text-white hover:bg-white/5 rounded-full h-8 w-8 relative z-10 border border-white/5 transition-all",
@@ -451,15 +470,15 @@ export function Sidebar({
                         title={isCollapsed && !isMobile ? item.title : ""}
                         className={cn(
                           "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all relative group overflow-hidden",
-                          isActive 
-                            ? "bg-violet-500/10 text-violet-400" 
+                          isActive
+                            ? "bg-violet-500/10 text-violet-400"
                             : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5",
                           (isCollapsed && !isMobile) && "justify-center px-0"
                         )}
                       >
                         {isActive && (
                           <>
-                            <motion.div 
+                            <motion.div
                               layoutId="sidebar-active-pill"
                               className="absolute left-0 w-1 h-6 bg-violet-400 rounded-r-full"
                               transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
@@ -472,24 +491,24 @@ export function Sidebar({
                           isActive ? "text-violet-400 drop-shadow-[0_0_8px_rgba(167,139,250,0.5)]" : "group-hover:text-zinc-200",
                           "group-hover:scale-110"
                         )} />
-                          {(!isCollapsed || isMobile) && (
-                            <span className={cn(
-                              "text-[13.5px] truncate relative z-10 transition-colors",
-                              isActive ? "font-black text-violet-400" : "font-semibold"
-                            )}>
-                              {item.title}
-                            </span>
-                          )}
-                              {item.href === "/solicitacoes" && pendingRequests > 0 && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg shadow-red-500/30 animate-pulse">
-                                  {pendingRequests}
-                                </div>
-                              )}
-                            {item.href === "/denuncias" && pendingDenuncias > 0 && (
-                              <div className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg shadow-red-500/30 animate-pulse">
-                                {pendingDenuncias}
-                              </div>
-                            )}
+                        {(!isCollapsed || isMobile) && (
+                          <span className={cn(
+                            "text-[13.5px] truncate relative z-10 transition-colors",
+                            isActive ? "font-black text-violet-400" : "font-semibold"
+                          )}>
+                            {item.title}
+                          </span>
+                        )}
+                        {item.href === "/solicitacoes" && pendingRequests > 0 && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg shadow-red-500/30 animate-pulse">
+                            {pendingRequests}
+                          </div>
+                        )}
+                        {item.href === "/denuncias" && pendingDenuncias > 0 && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg shadow-red-500/30 animate-pulse">
+                            {pendingDenuncias}
+                          </div>
+                        )}
                         {!isCollapsed && isActive && (
                           <ChevronRight className="w-3.5 h-3.5 ml-auto text-violet-400/50" />
                         )}
@@ -513,12 +532,12 @@ export function Sidebar({
             {simulatedRole && (
               <div className="absolute inset-0 bg-amber-500/10 animate-pulse pointer-events-none rounded-2xl" />
             )}
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg relative overflow-hidden",
-                simulatedRole 
-                  ? "bg-amber-500 shadow-amber-500/20" 
-                  : "bg-gradient-to-br from-violet-400 to-violet-600 shadow-violet-500/20"
-              )}>
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg relative overflow-hidden",
+              simulatedRole
+                ? "bg-amber-500 shadow-amber-500/20"
+                : "bg-gradient-to-br from-violet-400 to-violet-600 shadow-violet-500/20"
+            )}>
 
               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               {profile?.full_name?.charAt(0) ?? "U"}
@@ -533,10 +552,10 @@ export function Sidebar({
                     "text-[9px] font-black uppercase tracking-widest",
                     simulatedRole ? "text-amber-400" : "text-zinc-500"
                   )}>
-                    {profile?.role === "admin" ? "Administrador" : 
-                     profile?.role === "instrutor" ? "Instrutor" :
-                     profile?.role === "responsavel" ? "Responsável" :
-                     profile?.role === "aluno" ? "Aluno" : profile?.role}
+                    {profile?.role === "admin" ? "Administrador" :
+                      profile?.role === "instrutor" ? "Instrutor" :
+                        profile?.role === "responsavel" ? "Responsável" :
+                          profile?.role === "aluno" ? "Aluno" : profile?.role}
                   </span>
                   {simulatedRole && (
                     <span className="text-[7px] bg-amber-500/20 text-amber-400 px-1 py-0.5 rounded-sm font-black uppercase">Simulado</span>
@@ -545,9 +564,9 @@ export function Sidebar({
               </div>
             )}
           </div>
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             className={cn(
               "w-full justify-start gap-3 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-2xl h-12 transition-all group",
               (isCollapsed && !isMobile) && "px-0 justify-center"
