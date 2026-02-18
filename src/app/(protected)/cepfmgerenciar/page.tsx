@@ -655,9 +655,9 @@ export default function CEPFMAdminPage() {
                                                                 <SelectTrigger className="bg-zinc-900/50 border-white/10 h-14 rounded-2xl text-white font-black uppercase">
                                                                     <SelectValue placeholder="Selecione..." />
                                                                 </SelectTrigger>
-                                                                <SelectContent className="bg-zinc-950 border border-white/10 z-[100000]">
+                                                                <SelectContent className="bg-zinc-950 border border-white/10 z-[100000] min-w-[200px]">
                                                                     {patrulhas.map(p => (
-                                                                        <SelectItem key={p.id} value={p.id} className="text-white hover:text-yellow-500 focus:bg-yellow-500 focus:text-black font-black uppercase py-3 cursor-pointer">
+                                                                        <SelectItem key={p.id} value={p.id} className="text-white hover:text-yellow-500 focus:bg-yellow-500 focus:text-black font-black uppercase py-4 cursor-pointer">
                                                                             {p.nome}
                                                                         </SelectItem>
                                                                     ))}
@@ -701,8 +701,8 @@ export default function CEPFMAdminPage() {
                                                                         setSelectedStudentIds(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]);
                                                                     }}
                                                                     className={`p-4 rounded-3xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${selectedStudentIds.includes(s.id)
-                                                                            ? 'bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/10'
-                                                                            : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-zinc-900/50'
+                                                                        ? 'bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/10'
+                                                                        : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-zinc-900/50'
                                                                         }`}
                                                                 >
                                                                     <div className="flex items-center gap-4 min-w-0">
@@ -779,8 +779,8 @@ export default function CEPFMAdminPage() {
                                                                     <div className="flex items-center gap-8">
                                                                         <div className="relative">
                                                                             <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center font-black text-3xl shadow-2xl transition-all group-hover:rotate-6 ${member.cargo !== 'Recruta'
-                                                                                    ? 'bg-yellow-500 text-black'
-                                                                                    : 'bg-zinc-900 border border-white/5 text-zinc-500'
+                                                                                ? 'bg-yellow-500 text-black'
+                                                                                : 'bg-zinc-900 border border-white/5 text-zinc-500'
                                                                                 }`}>
                                                                                 {member.nome_guerra?.charAt(0) || '?'}
                                                                             </div>
