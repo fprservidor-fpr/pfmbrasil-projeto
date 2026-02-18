@@ -145,6 +145,9 @@ export default function CEPFMAdminPage() {
                 fetchVoteCounts(vRes.data.id);
             }
 
+            // Remove duplicates from patrulhas if any (just safe guard)
+            // Not strictly needed if ID is unique
+
             // Structure scores: { patrulhaId: { modalidadeId: pontos } }
             const initialScores: Record<string, Record<string, number>> = {};
             pRes.data?.forEach(p => {
@@ -496,13 +499,13 @@ export default function CEPFMAdminPage() {
                                                 <SelectItem
                                                     key={p.id}
                                                     value={p.id}
-                                                    className="rounded-xl font-black uppercase tracking-tight py-4 focus:bg-yellow-400 focus:text-black"
+                                                    className="rounded-xl font-black uppercase tracking-tight py-4 focus:bg-yellow-400 focus:text-black data-[state=checked]:bg-yellow-400 data-[state=checked]:text-black text-white cursor-pointer group"
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800">
                                                             <img src={p.logo_url} alt="" className="w-full h-full object-cover" />
                                                         </div>
-                                                        {p.nome}
+                                                        <span className="text-white group-focus:text-black group-data-[state=checked]:text-black">{p.nome}</span>
                                                     </div>
                                                 </SelectItem>
                                             ))}
@@ -547,14 +550,13 @@ export default function CEPFMAdminPage() {
                                                 disabled={isUploading || !selectedPatrulhaId}
                                             />
                                             <Button
-                                                asChild
+                                                type="button"
                                                 disabled={isUploading || !selectedPatrulhaId}
-                                                className="w-full bg-white hover:bg-zinc-200 text-black font-black uppercase text-[10px] tracking-widest h-12 rounded-xl"
+                                                className="w-full bg-white hover:bg-zinc-200 text-black font-black uppercase text-[10px] tracking-widest h-12 rounded-xl flex items-center justify-center gap-2"
+                                                onClick={() => document.getElementById('logo-upload')?.click()}
                                             >
-                                                <label htmlFor="logo-upload" className="cursor-pointer flex items-center justify-center gap-2">
-                                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                                    Upload de Arquivo (PNG/JPG)
-                                                </label>
+                                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                Upload de Arquivo (PNG/JPG)
                                             </Button>
                                         </div>
 
@@ -603,12 +605,18 @@ export default function CEPFMAdminPage() {
                                                 <div className="space-y-2">
                                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">1. Selecione a Patrulha</label>
                                                     <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
-                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl">
+                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl text-white">
                                                             <SelectValue placeholder="Escolha a equipe..." />
                                                         </SelectTrigger>
-                                                        <SelectContent className="bg-zinc-900 border-white/10">
+                                                        <SelectContent className="bg-zinc-950 border-white/10 z-[100]">
                                                             {patrulhas.map(p => (
-                                                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                                                <SelectItem
+                                                                    key={p.id}
+                                                                    value={p.id}
+                                                                    className="text-white focus:bg-white/10 focus:text-white cursor-pointer data-[state=checked]:bg-yellow-400 data-[state=checked]:text-black"
+                                                                >
+                                                                    {p.nome}
+                                                                </SelectItem>
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
@@ -715,7 +723,11 @@ export default function CEPFMAdminPage() {
                                         <TableBody>
                                             {members
                                                 .filter(m => m.patrulha_id === selectedPatrulhaId)
-                                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Oldest first
+                                                .sort((a, b) => {
+                                                    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                                                    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                                                    return dateA - dateB;
+                                                }) // Sort Oldest -> Newest (Ascending)
                                                 .map(member => (
                                                     <TableRow key={member.id} className="border-white/5 hover:bg-white/5 transition-colors group">
                                                         <TableCell className="p-8">
