@@ -18,7 +18,9 @@ import {
     Settings,
     TrendingUp,
     ChevronRight,
-    Timer
+    Timer,
+    Upload,
+    Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -83,6 +85,8 @@ interface Membro {
     nome_guerra: string;
     matricula: string;
     cargo: string;
+    aluno_id: string;
+    created_at: string;
 }
 
 export default function CEPFMAdminPage() {
@@ -107,6 +111,7 @@ export default function CEPFMAdminPage() {
     const [addingMember, setAddingMember] = useState(false);
     const [selectedCargo, setSelectedCargo] = useState("Recruta");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         fetchBaseData();
@@ -127,6 +132,7 @@ export default function CEPFMAdminPage() {
             if (pRes.data) {
                 setPatrulhas(pRes.data);
                 if (pRes.data.length > 0) setSelectedPatrulhaId(pRes.data[0].id);
+                if (pRes.data.length > 0 && !selectedPatrulhaId) setSelectedPatrulhaId(pRes.data[0].id);
             }
             if (mRes.data) setModalidades(mRes.data);
             if (memRes.data) setMembers(memRes.data);
@@ -263,6 +269,68 @@ export default function CEPFMAdminPage() {
         } catch (error) {
             console.error(error);
             toast.error("Erro ao remover membro.");
+        }
+    };
+
+    const handleUploadLogo = async (patrulhaId: string, url: string) => {
+        try {
+            const { error } = await supabase
+                .from("cepfm_patrulhas")
+                .update({ logo_url: url })
+                .eq("id", patrulhaId);
+
+            if (error) throw error;
+            toast.success("Logo atualizada!");
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao atualizar logo.");
+        }
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, patrulhaId: string) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+            toast.error("Por favor, selecione um arquivo de imagem.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${patrulhaId}-${Math.random()}.${fileExt}`;
+            const filePath = `logos/${fileName}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('cepfm')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('cepfm')
+                .getPublicUrl(filePath);
+
+            // Update Database
+            const { error: updateError } = await supabase
+                .from("cepfm_patrulhas")
+                .update({ logo_url: publicUrl })
+                .eq("id", patrulhaId);
+
+            if (updateError) throw updateError;
+
+            toast.success("Logo enviada e atualizada com sucesso!");
+            fetchBaseData();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Erro ao fazer upload da imagem.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -443,6 +511,73 @@ export default function CEPFMAdminPage() {
                                 </CardContent>
                             </Card>
 
+                            <Card className="bg-zinc-900/30 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-sm">
+                                <CardHeader className="p-8 bg-white/5 border-b border-white/5">
+                                    <CardTitle className="text-xl font-black uppercase italic text-white text-center">Logo da Patrulha</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-8 space-y-4">
+                                    <div className="w-32 h-32 mx-auto rounded-3xl bg-zinc-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group/logo">
+                                        {patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url ? (
+                                            <img
+                                                src={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url}
+                                                alt="Logo"
+                                                className="w-full h-full object-contain p-2"
+                                            />
+                                        ) : (
+                                            <div className="text-center p-4">
+                                                <Plus className="w-6 h-6 mx-auto mb-2 opacity-20" />
+                                                <span className="text-[10px] font-black opacity-20 uppercase">Sem Logo</span>
+                                            </div>
+                                        )}
+                                        {isUploading && (
+                                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                                <Loader2 className="w-8 h-8 text-yellow-500 animate-spin" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col gap-3">
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                id="logo-upload"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={(e) => handleFileChange(e, selectedPatrulhaId)}
+                                                disabled={isUploading || !selectedPatrulhaId}
+                                            />
+                                            <Button
+                                                asChild
+                                                disabled={isUploading || !selectedPatrulhaId}
+                                                className="w-full bg-white hover:bg-zinc-200 text-black font-black uppercase text-[10px] tracking-widest h-12 rounded-xl"
+                                            >
+                                                <label htmlFor="logo-upload" className="cursor-pointer flex items-center justify-center gap-2">
+                                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                    Upload de Arquivo (PNG/JPG)
+                                                </label>
+                                            </Button>
+                                        </div>
+
+                                        <div className="relative flex items-center">
+                                            <div className="flex-grow border-t border-white/5"></div>
+                                            <span className="flex-shrink mx-4 text-[8px] font-black text-zinc-600 uppercase">Ou use uma URL</span>
+                                            <div className="flex-grow border-t border-white/5"></div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Input
+                                                className="bg-zinc-950 border-white/5 h-12 rounded-xl text-xs"
+                                                placeholder="https://exemplo.com/logo.png"
+                                                value={patrulhas.find(p => p.id === selectedPatrulhaId)?.logo_url || ''}
+                                                onChange={(e) => handleUploadLogo(selectedPatrulhaId, e.target.value)}
+                                                disabled={isUploading}
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-zinc-600 font-bold uppercase italic text-center px-1">Selecione um arquivo PNG ou JPG para atualizar a logo oficialmente.</p>
+                                </CardContent>
+                            </Card>
+
                             <Card className="bg-yellow-400 rounded-[2.5rem] p-8 border-none overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
                                     <UserPlus className="w-24 h-24 text-black" />
@@ -578,63 +713,66 @@ export default function CEPFMAdminPage() {
                                 <CardContent className="p-0">
                                     <Table>
                                         <TableBody>
-                                            {members.filter(m => m.patrulha_id === selectedPatrulhaId).map(member => (
-                                                <TableRow key={member.id} className="border-white/5 hover:bg-white/5 transition-colors group">
-                                                    <TableCell className="p-8">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg ${member.cargo !== 'Recruta' ? 'bg-yellow-400 text-black' : 'bg-zinc-950 text-zinc-500'
-                                                                }`}>
-                                                                {member.nome_guerra.charAt(0)}
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="font-black uppercase tracking-tight text-lg text-white group-hover:text-yellow-400 transition-colors">
-                                                                    {member.nome_guerra}
-                                                                </h4>
-                                                                <div className="flex items-center gap-2 mt-1">
-                                                                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">MAT: {member.matricula}</span>
-                                                                    {member.cargo !== 'Recruta' && (
-                                                                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-yellow-400/10 text-yellow-400 text-[9px] font-black uppercase tracking-widest rounded-md border border-yellow-400/20">
-                                                                            <Crown className="w-3 h-3" /> {member.cargo}
-                                                                        </span>
-                                                                    )}
+                                            {members
+                                                .filter(m => m.patrulha_id === selectedPatrulhaId)
+                                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Oldest first
+                                                .map(member => (
+                                                    <TableRow key={member.id} className="border-white/5 hover:bg-white/5 transition-colors group">
+                                                        <TableCell className="p-8">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg ${member.cargo !== 'Recruta' ? 'bg-yellow-400 text-black' : 'bg-zinc-950 text-zinc-500'
+                                                                    }`}>
+                                                                    {member.nome_guerra.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-black uppercase tracking-tight text-lg text-white group-hover:text-yellow-400 transition-colors">
+                                                                        {member.nome_guerra}
+                                                                    </h4>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">MAT: {member.matricula}</span>
+                                                                        {member.cargo !== 'Recruta' && (
+                                                                            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-yellow-400/10 text-yellow-400 text-[9px] font-black uppercase tracking-widest rounded-md border border-yellow-400/20">
+                                                                                <Crown className="w-3 h-3" /> {member.cargo}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right p-8">
-                                                        <div className="flex items-center justify-end gap-3">
-                                                            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-white/5 mr-2">
-                                                                <button
-                                                                    onClick={() => updateMemberRole(member.id, 'Líder')}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Líder' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-zinc-600 hover:text-white'}`}
+                                                        </TableCell>
+                                                        <TableCell className="text-right p-8">
+                                                            <div className="flex items-center justify-end gap-3">
+                                                                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-white/5 mr-2">
+                                                                    <button
+                                                                        onClick={() => updateMemberRole(member.id, 'Líder')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Líder' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-zinc-600 hover:text-white'}`}
+                                                                    >
+                                                                        Líder
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => updateMemberRole(member.id, 'Vice-Líder')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Vice-Líder' ? 'bg-zinc-500 text-white shadow-lg' : 'text-zinc-600 hover:text-white'}`}
+                                                                    >
+                                                                        Vice
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => updateMemberRole(member.id, 'Recruta')}
+                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Recruta' ? 'bg-zinc-800 text-zinc-400' : 'text-zinc-600 hover:text-white'}`}
+                                                                    >
+                                                                        Recruta
+                                                                    </button>
+                                                                </div>
+                                                                <Button
+                                                                    onClick={() => removeMember(member.id)}
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
                                                                 >
-                                                                    Líder
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => updateMemberRole(member.id, 'Vice-Líder')}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Vice-Líder' ? 'bg-zinc-500 text-white shadow-lg' : 'text-zinc-600 hover:text-white'}`}
-                                                                >
-                                                                    Vice
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => updateMemberRole(member.id, 'Recruta')}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${member.cargo === 'Recruta' ? 'bg-zinc-800 text-zinc-400' : 'text-zinc-600 hover:text-white'}`}
-                                                                >
-                                                                    Recruta
-                                                                </button>
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
                                                             </div>
-                                                            <Button
-                                                                onClick={() => removeMember(member.id)}
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
                                             {members.filter(m => m.patrulha_id === selectedPatrulhaId).length === 0 && (
                                                 <TableRow>
                                                     <TableCell colSpan={2} className="p-20 text-center">
