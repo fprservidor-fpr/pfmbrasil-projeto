@@ -100,6 +100,14 @@ export default function CEPFMAdminPage() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
+    // New state for student selection
+    const [allStudents, setAllStudents] = useState<any[]>([]);
+    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const [studentSearch, setStudentSearch] = useState("");
+    const [addingMember, setAddingMember] = useState(false);
+    const [selectedCargo, setSelectedCargo] = useState("Recruta");
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
     useEffect(() => {
         fetchBaseData();
     }, []);
@@ -107,12 +115,13 @@ export default function CEPFMAdminPage() {
     async function fetchBaseData() {
         try {
             setLoading(true);
-            const [pRes, mRes, ptsRes, memRes, vRes] = await Promise.all([
+            const [pRes, mRes, ptsRes, memRes, vRes, sRes] = await Promise.all([
                 supabase.from("cepfm_patrulhas").select("*"),
                 supabase.from("cepfm_modalidades").select("*").order("ordem"),
                 supabase.from("cepfm_pontuacoes").select("*"),
                 supabase.from("cepfm_membros").select("*"),
-                supabase.from("cepfm_votacoes").select("*").eq("ativa", true).single()
+                supabase.from("cepfm_votacoes").select("*").eq("ativa", true).single(),
+                supabase.from("students").select("id, nome_guerra, nome_completo, matricula_pfm, status")
             ]);
 
             if (pRes.data) {
@@ -142,6 +151,8 @@ export default function CEPFMAdminPage() {
                     initialScores[pt.patrulha_id][pt.modalidade_id] = pt.pontos;
                 }
             });
+
+            if (sRes.data) setAllStudents(sRes.data);
 
             setScores(initialScores);
         } catch (error) {
@@ -196,6 +207,64 @@ export default function CEPFMAdminPage() {
             [patrulhaId]: { ...prev[patrulhaId], [modId]: num }
         }));
     };
+
+    const confirmInclusion = async () => {
+        if (selectedStudentIds.length === 0 || !selectedPatrulhaId) {
+            toast.error("Selecione pelo menos um aluno.");
+            return;
+        }
+
+        setAddingMember(true);
+        try {
+            const newMembers = selectedStudentIds.map(id => {
+                const student = allStudents.find(s => s.id === id);
+                return {
+                    patrulha_id: selectedPatrulhaId,
+                    aluno_id: student.id,
+                    nome_guerra: student.nome_guerra || student.nome_completo.split(' ')[0],
+                    matricula: student.matricula_pfm || '---',
+                    cargo: selectedCargo
+                };
+            });
+
+            const { error } = await supabase.from("cepfm_membros").insert(newMembers);
+            if (error) throw error;
+
+            toast.success(`${selectedStudentIds.length} membro(s) incluídos com sucesso!`);
+            setSelectedStudentIds([]);
+            setIsDialogOpen(false);
+            fetchBaseData(); // Refresh list
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao incluir membros.");
+        } finally {
+            setAddingMember(false);
+        }
+    };
+
+    const removeMember = async (id: string) => {
+        try {
+            const { error } = await supabase.from("cepfm_membros").delete().eq("id", id);
+            if (error) throw error;
+            toast.success("Membro removido da patrulha.");
+            fetchBaseData();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao remover membro.");
+        }
+    };
+
+    // Filter students for the selection list:
+    // 1. Must match search
+    // 2. Must NOT be already in any patrol (not in members list)
+    const availableStudents = allStudents.filter(s => {
+        if (s.status !== "ativo") return false;
+        const isAlreadyMember = members.some(m => m.aluno_id === s.id);
+        const matchesSearch = (s.nome_guerra?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+            s.nome_completo?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+            s.matricula_pfm?.toLowerCase().includes(studentSearch.toLowerCase()));
+        return !isAlreadyMember && matchesSearch;
+    });
 
     const saveRanking = async () => {
         try {
@@ -354,42 +423,126 @@ export default function CEPFMAdminPage() {
                                 </div>
                                 <h3 className="text-xl font-black text-black uppercase italic mb-4">Adicionar Membro</h3>
                                 <p className="text-black/70 text-sm font-bold mb-6">Insira novos alunos na patrulha {patrulhas.find(p => p.id === selectedPatrulhaId)?.nome}.</p>
-                                <Dialog>
+                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                     <DialogTrigger asChild>
                                         <Button className="w-full bg-black hover:bg-zinc-900 text-yellow-400 h-14 rounded-xl font-black uppercase text-xs tracking-widest">
                                             Abrir Formulário
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="bg-zinc-950 border-white/10 text-white rounded-[2rem]">
-                                        <DialogHeader>
+                                    <DialogContent className="bg-zinc-950 border-white/10 text-white rounded-[2rem] max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                                        <DialogHeader className="p-8 pb-4">
                                             <DialogTitle className="text-2xl font-black uppercase italic text-yellow-400">Novo Membro</DialogTitle>
-                                            <CardDescription className="text-zinc-500">Busque o aluno por matrícula ou nome de guerra.</CardDescription>
+                                            <CardDescription className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest">
+                                                Adicionando à equipe: <span className="text-white">{patrulhas.find(p => p.id === selectedPatrulhaId)?.nome}</span>
+                                            </CardDescription>
                                         </DialogHeader>
-                                        <div className="space-y-4 py-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Busca Rápida</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                                    <Input className="bg-zinc-900 border-white/10 pl-11 h-12 rounded-xl focus:border-yellow-400" placeholder="Ex: 0127 ou GOLIAS" />
+
+                                        <div className="flex-1 overflow-y-auto px-8 py-4 space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">1. Selecione a Patrulha</label>
+                                                    <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
+                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl">
+                                                            <SelectValue placeholder="Escolha a equipe..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-zinc-900 border-white/10">
+                                                            {patrulhas.map(p => (
+                                                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">2. Definir Cargo</label>
+                                                    <Select value={selectedCargo} onValueChange={setSelectedCargo}>
+                                                        <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-zinc-900 border-white/10">
+                                                            <SelectItem value="Líder">Líder</SelectItem>
+                                                            <SelectItem value="Vice-Líder">Vice-Líder</SelectItem>
+                                                            <SelectItem value="Recruta">Recruta (Padrão)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Definir Cargo</label>
-                                                <Select defaultValue="Recruta">
-                                                    <SelectTrigger className="bg-zinc-900 border-white/10 h-12 rounded-xl">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-zinc-900 border-white/10">
-                                                        <SelectItem value="Líder">Líder</SelectItem>
-                                                        <SelectItem value="Vice-Líder">Vice-Líder</SelectItem>
-                                                        <SelectItem value="Recruta">Recruta (Padrão)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">3. Busca Rápida de Alunos Disponíveis</label>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                                        <Input
+                                                            className="bg-zinc-900 border-white/10 pl-11 h-12 rounded-xl focus:border-yellow-400"
+                                                            placeholder="Nome ou Matrícula..."
+                                                            value={studentSearch}
+                                                            onChange={(e) => setStudentSearch(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selecione os Alunos ({selectedStudentIds.length} selecionados)</label>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-[9px] font-black uppercase text-zinc-500 hover:text-white"
+                                                        onClick={() => setSelectedStudentIds([])}
+                                                    >
+                                                        Limpar Seleção
+                                                    </Button>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {availableStudents.slice(0, 30).map(s => (
+                                                        <div
+                                                            key={s.id}
+                                                            onClick={() => {
+                                                                if (selectedStudentIds.includes(s.id)) {
+                                                                    setSelectedStudentIds(selectedStudentIds.filter(id => id !== s.id));
+                                                                } else {
+                                                                    setSelectedStudentIds([...selectedStudentIds, s.id]);
+                                                                }
+                                                            }}
+                                                            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${selectedStudentIds.includes(s.id)
+                                                                ? 'bg-yellow-400/10 border-yellow-400 text-yellow-400'
+                                                                : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/10'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${selectedStudentIds.includes(s.id) ? 'bg-yellow-400 text-black' : 'bg-zinc-800'
+                                                                    }`}>
+                                                                    {s.nome_guerra?.charAt(0) || s.nome_completo.charAt(0)}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-black uppercase text-xs tracking-tight">{s.nome_guerra || s.nome_completo.split(' ')[0]}</span>
+                                                                    <span className="text-[9px] font-bold opacity-50 uppercase">{s.matricula_pfm || 'SEM MATRÍCULA'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedStudentIds.includes(s.id) ? 'bg-yellow-400 border-yellow-400' : 'border-white/10 bg-zinc-950'
+                                                                }`}>
+                                                                {selectedStudentIds.includes(s.id) && <Plus className="w-3 h-3 text-black" />}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {availableStudents.length === 0 && (
+                                                        <div className="py-10 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">
+                                                            Nenhum aluno livre encontrado
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                        <DialogFooter>
-                                            <Button className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase text-xs tracking-widest w-full h-14 rounded-xl">
-                                                Confirmar Inclusão
+
+                                        <DialogFooter className="p-8 pt-4 bg-white/5">
+                                            <Button
+                                                onClick={confirmInclusion}
+                                                disabled={addingMember || selectedStudentIds.length === 0}
+                                                className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase text-xs tracking-widest w-full h-14 rounded-xl shadow-xl shadow-yellow-400/10 disabled:opacity-50"
+                                            >
+                                                {addingMember ? 'Salvando...' : `Confirmar Inclusão (${selectedStudentIds.length})`}
                                             </Button>
                                         </DialogFooter>
                                     </DialogContent>
@@ -441,7 +594,12 @@ export default function CEPFMAdminPage() {
                                                             <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white hover:bg-white/5">
                                                                 <Edit3 className="w-4 h-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10">
+                                                            <Button
+                                                                onClick={() => removeMember(member.id)}
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
+                                                            >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>
                                                         </div>

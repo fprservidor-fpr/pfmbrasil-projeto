@@ -314,6 +314,43 @@ export default function CEPFMPage() {
                     </div>
                 </section>
 
+                {/* Modalidades Section */}
+                <section className="mb-24">
+                    <div className="flex items-center gap-4 mb-12">
+                        <div className="bg-red-600 px-6 py-3 rounded-xl shadow-[0_0_30px_rgba(220,38,38,0.3)]">
+                            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-none">Modalidades CEPFM 2026</h2>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        {[
+                            "1 - ATLETISMO",
+                            "2 - QUEIMADA",
+                            "3 - ORDEM UNIDA",
+                            "4 - QUIZ",
+                            "5 - BATALHA LÚDICA",
+                            "6 - FUTSAL",
+                            "7 - VÔLEI",
+                            "8 - CIRCUITO",
+                            "9 - DESAFIO SURPRESA"
+                        ].map((mod, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.05 }}
+                                className="bg-black border border-white/10 rounded-xl p-6 flex flex-col justify-center min-h-[100px] hover:border-yellow-400/50 transition-colors shadow-xl"
+                            >
+                                <span className="text-white font-black uppercase italic tracking-tighter text-lg leading-tight">
+                                    {mod}
+                                </span>
+                            </motion.div>
+                        ))}
+                        {/* Empty box for grid alignment if needed, or just leave as is */}
+                    </div>
+                </section>
+
                 <div className="grid lg:grid-cols-12 gap-12">
                     {/* Member List Section */}
                     <div className="lg:col-span-8">
