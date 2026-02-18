@@ -1,28 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
-    LayoutDashboard,
-    Trophy,
     Users,
     Vote,
     Plus,
     Trash2,
     Save,
-    Edit3,
     Search,
     UserPlus,
     Crown,
     Instagram,
-    Calendar,
-    Settings,
-    TrendingUp,
-    ChevronRight,
-    Timer,
     Upload,
     Loader2,
     CheckCircle2,
-    AlertCircle,
     Info,
     BarChart3,
     Target
@@ -69,7 +60,6 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-
 import { supabase } from "@/lib/supabase";
 
 // --- Types ---
@@ -82,6 +72,7 @@ interface Patrulha {
 interface Modalidade {
     id: string;
     nome: string;
+    ordem: number;
 }
 
 interface Membro {
@@ -113,13 +104,56 @@ export default function CEPFMAdminPage() {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [studentSearch, setStudentSearch] = useState("");
     const [addingMember, setAddingMember] = useState(false);
-    const [selectedCargo, setSelectedCargo] = useState("Recruta");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [isSeeding, setIsSeeding] = useState(false);
 
     useEffect(() => {
         fetchBaseData();
     }, []);
+
+    async function seedDatabase() {
+        try {
+            setIsSeeding(true);
+            const loadId = toast.loading("Semeando Banco de Dados...");
+
+            const patrulhasToSeed = [
+                { nome: 'Águia', cor_primaria: '#EAB308', cor_secundaria: '#000000', logo_url: 'https://drive.google.com/uc?export=view&id=13PTKh7TkeMkLxsCH-P0uJhDiQXhkoE_J' },
+                { nome: 'Tubarão', cor_primaria: '#3B82F6', cor_secundaria: '#FFFFFF', logo_url: 'https://drive.google.com/uc?export=view&id=1TJS8Hp2MANkhEyxPgJM8TbiTQ8kRF8QE' },
+                { nome: 'Leão', cor_primaria: '#EF4444', cor_secundaria: '#FFFFFF', logo_url: 'https://drive.google.com/uc?export=view&id=1fxTgTV1UaSTpHVE0ocZPh8_3HDIluMg7' },
+                { nome: 'Tigre', cor_primaria: '#18181B', cor_secundaria: '#FFFFFF', logo_url: 'https://drive.google.com/uc?export=view&id=1f--InolEggB5vFmeT5ckvftbf-EbqVIQ' }
+            ];
+
+            const modalidadesToSeed = [
+                { nome: 'ATLETISMO', ordem: 1 },
+                { nome: 'QUEIMADA', ordem: 2 },
+                { nome: 'ORDEM UNIDA', ordem: 3 },
+                { nome: 'QUIZ', ordem: 4 },
+                { nome: 'BATALHA LÚDICA', ordem: 5 },
+                { nome: 'FUTSAL', ordem: 6 },
+                { nome: 'VÔLEI', ordem: 7 },
+                { nome: 'CIRCUITO', ordem: 8 },
+                { nome: 'DESAFIO SURPRESA', ordem: 9 }
+            ];
+
+            // 1. Patrulhas
+            const { error: pErr } = await supabase.from("cepfm_patrulhas").upsert(patrulhasToSeed, { onConflict: 'nome' });
+            if (pErr) throw pErr;
+
+            // 2. Modalidades
+            const { error: mErr } = await supabase.from("cepfm_modalidades").upsert(modalidadesToSeed, { onConflict: 'nome' });
+            if (mErr) throw mErr;
+
+            toast.dismiss(loadId);
+            toast.success("Dados semeados com sucesso!");
+            fetchBaseData();
+        } catch (error: any) {
+            toast.dismiss();
+            toast.error("Erro ao semear: " + error.message);
+        } finally {
+            setIsSeeding(false);
+        }
+    }
 
     async function fetchBaseData() {
         try {
@@ -135,7 +169,6 @@ export default function CEPFMAdminPage() {
 
             if (pRes.data) {
                 setPatrulhas(pRes.data);
-                // Maintain selection or set default
                 if (pRes.data.length > 0 && !selectedPatrulhaId) {
                     setSelectedPatrulhaId(pRes.data[0].id);
                 }
@@ -145,19 +178,19 @@ export default function CEPFMAdminPage() {
             if (vRes.data) {
                 setActiveVoting(vRes.data);
                 setVotingTitle(vRes.data.titulo);
-                setStartDate(new Date(vRes.data.data_inicio).toISOString().slice(0, 16));
-                setEndDate(new Date(vRes.data.data_fim).toISOString().slice(0, 16));
+                setStartDate(vRes.data.data_inicio ? new Date(vRes.data.data_inicio).toISOString().slice(0, 16) : "");
+                setEndDate(vRes.data.data_fim ? new Date(vRes.data.data_fim).toISOString().slice(0, 16) : "");
                 setInstaLinks(vRes.data.parceiros_instagram || []);
                 fetchVoteCounts(vRes.data.id);
             }
 
             const initialScores: Record<string, Record<string, number>> = {};
-            pRes.data?.forEach(p => {
+            pRes.data?.forEach((p: any) => {
                 initialScores[p.id] = {};
-                mRes.data?.forEach(m => initialScores[p.id][m.id] = 0);
+                mRes.data?.forEach((m: any) => initialScores[p.id][m.id] = 0);
             });
 
-            ptsRes.data?.forEach(pt => {
+            ptsRes.data?.forEach((pt: any) => {
                 if (initialScores[pt.patrulha_id]) {
                     initialScores[pt.patrulha_id][pt.modalidade_id] = pt.pontos;
                 }
@@ -173,14 +206,14 @@ export default function CEPFMAdminPage() {
     }
 
     async function fetchVoteCounts(votacaoId: string) {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from("cepfm_votos")
             .select("patrulha_id, votos_contabilizados")
             .eq("votacao_id", votacaoId);
 
         if (data) {
             const counts: Record<string, number> = {};
-            data.forEach(v => {
+            data.forEach((v: any) => {
                 counts[v.patrulha_id] = (counts[v.patrulha_id] || 0) + v.votos_contabilizados;
             });
             setVotosContabilizados(counts);
@@ -284,7 +317,7 @@ export default function CEPFMAdminPage() {
                     aluno_id: student.id,
                     nome_guerra: student.nome_guerra || student.nome_completo.split(' ')[0],
                     matricula: student.matricula_pfm || '---',
-                    cargo: selectedCargo
+                    cargo: 'Recruta'
                 };
             });
 
@@ -352,7 +385,7 @@ export default function CEPFMAdminPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#050505] text-zinc-100 p-4 md:p-8 lg:p-12 selection:bg-yellow-500/30 font-sans">
+        <div className="min-h-screen bg-[#050505] text-zinc-100 p-4 md:p-8 lg:p-12 selection:bg-yellow-500/30 font-sans overflow-x-hidden">
             {/* --- PREMIUM HEADER --- */}
             <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
                 <div className="space-y-4">
@@ -365,6 +398,15 @@ export default function CEPFMAdminPage() {
                             <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_#eab308]" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500">Sistema Live | Admin 2026</span>
                         </div>
+                        {patrulhas.length === 0 && (
+                            <Button
+                                onClick={seedDatabase}
+                                disabled={isSeeding}
+                                className="h-6 rounded-full bg-red-500 text-white text-[8px] font-black uppercase px-2 hover:bg-red-400"
+                            >
+                                {isSeeding ? "Processando..." : "Semear Dados Iniciais"}
+                            </Button>
+                        )}
                     </motion.div>
 
                     <div>
@@ -507,10 +549,10 @@ export default function CEPFMAdminPage() {
                                     </div>
 
                                     <Select value={selectedPatrulhaId} onValueChange={setSelectedPatrulhaId}>
-                                        <SelectTrigger className="w-full h-20 bg-zinc-950 border-white/5 rounded-3xl text-xl font-black uppercase tracking-tighter hover:border-yellow-500 transition-all px-6 text-white text-center">
+                                        <SelectTrigger className="w-full h-20 bg-zinc-950 border border-white/5 rounded-3xl text-xl font-black uppercase tracking-tighter hover:border-yellow-500 transition-all px-6 text-white text-center">
                                             <SelectValue placeholder="Escolha a equipe" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-zinc-950 border-white/10 rounded-2xl overflow-hidden p-2 z-[9999]">
+                                        <SelectContent className="bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden p-2 z-[99999]">
                                             {patrulhas.map(p => (
                                                 <SelectItem
                                                     key={p.id}
@@ -593,7 +635,7 @@ export default function CEPFMAdminPage() {
                                                     Lançar Inclusão
                                                 </Button>
                                             </DialogTrigger>
-                                            <DialogContent className="bg-[#0a0a0a] border-white/5 text-white rounded-[2.5rem] max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                                            <DialogContent className="bg-[#0a0a0a] border-white/5 text-white rounded-[2.5rem] max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] z-[99999]">
                                                 <DialogHeader className="p-10 pb-6 bg-yellow-500/5">
                                                     <DialogTitle className="text-4xl font-black uppercase italic text-white leading-none">
                                                         <span className="text-yellow-500 italic block text-lg tracking-[0.2em] mb-2">Procedimento de</span>
@@ -613,7 +655,7 @@ export default function CEPFMAdminPage() {
                                                                 <SelectTrigger className="bg-zinc-900/50 border-white/10 h-14 rounded-2xl text-white font-black uppercase">
                                                                     <SelectValue placeholder="Selecione..." />
                                                                 </SelectTrigger>
-                                                                <SelectContent className="bg-zinc-950 border-white/10 z-[9999]">
+                                                                <SelectContent className="bg-zinc-950 border border-white/10 z-[100000]">
                                                                     {patrulhas.map(p => (
                                                                         <SelectItem key={p.id} value={p.id} className="text-white hover:text-yellow-500 focus:bg-yellow-500 focus:text-black font-black uppercase py-3 cursor-pointer">
                                                                             {p.nome}
@@ -623,17 +665,10 @@ export default function CEPFMAdminPage() {
                                                             </Select>
                                                         </div>
                                                         <div className="space-y-4">
-                                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block">02. Cargo Inicial</label>
-                                                            <Select value={selectedCargo} onValueChange={setSelectedCargo}>
-                                                                <SelectTrigger className="bg-zinc-900/50 border-white/10 h-14 rounded-2xl text-white font-black uppercase">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent className="bg-zinc-950 border-white/10 z-[9999]">
-                                                                    <SelectItem value="Líder" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Líder</SelectItem>
-                                                                    <SelectItem value="Vice-Líder" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Vice-Líder</SelectItem>
-                                                                    <SelectItem value="Recruta" className="text-white focus:bg-yellow-500 focus:text-black font-black uppercase py-3">Recruta</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block opacity-40">02. Cargo Inicial</label>
+                                                            <div className="bg-zinc-900/30 border border-white/10 h-14 rounded-2xl flex items-center px-6 text-zinc-600 font-black uppercase text-xs">
+                                                                RECRUTA
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -666,8 +701,8 @@ export default function CEPFMAdminPage() {
                                                                         setSelectedStudentIds(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]);
                                                                     }}
                                                                     className={`p-4 rounded-3xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${selectedStudentIds.includes(s.id)
-                                                                        ? 'bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/10'
-                                                                        : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-zinc-900/50'
+                                                                            ? 'bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/10'
+                                                                            : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:border-white/10 hover:bg-zinc-900/50'
                                                                         }`}
                                                                 >
                                                                     <div className="flex items-center gap-4 min-w-0">
@@ -744,8 +779,8 @@ export default function CEPFMAdminPage() {
                                                                     <div className="flex items-center gap-8">
                                                                         <div className="relative">
                                                                             <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center font-black text-3xl shadow-2xl transition-all group-hover:rotate-6 ${member.cargo !== 'Recruta'
-                                                                                ? 'bg-yellow-500 text-black'
-                                                                                : 'bg-zinc-900 border border-white/5 text-zinc-500'
+                                                                                    ? 'bg-yellow-500 text-black'
+                                                                                    : 'bg-zinc-900 border border-white/5 text-zinc-500'
                                                                                 }`}>
                                                                                 {member.nome_guerra?.charAt(0) || '?'}
                                                                             </div>
