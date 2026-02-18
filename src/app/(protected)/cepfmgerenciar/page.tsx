@@ -217,6 +217,65 @@ export default function CEPFMAdminPage() {
                 counts[v.patrulha_id] = (counts[v.patrulha_id] || 0) + v.votos_contabilizados;
             });
             setVotosContabilizados(counts);
+        } else {
+            setVotosContabilizados({});
+        }
+    }
+
+    async function deactivateVoting() {
+        if (!activeVoting) return;
+        try {
+            const { error } = await supabase
+                .from("cepfm_votacoes")
+                .update({ ativa: false })
+                .eq("id", activeVoting.id);
+
+            if (error) throw error;
+            toast.success("Votação desativada!");
+            fetchBaseData();
+        } catch (error) {
+            toast.error("Erro ao desativar votação.");
+        }
+    }
+
+    async function deleteVoting() {
+        if (!activeVoting) return;
+        if (!confirm("Isso excluirá permanentemente a votação e TODOS os votos vinculados. Continuar?")) return;
+
+        try {
+            // First delete votes (due to FK)
+            await supabase.from("cepfm_votos").delete().eq("votacao_id", activeVoting.id);
+
+            // Then delete campaign
+            const { error } = await supabase.from("cepfm_votacoes").delete().eq("id", activeVoting.id);
+
+            if (error) throw error;
+            toast.success("Campanha e votos excluídos!");
+            setActiveVoting(null);
+            fetchBaseData();
+        } catch (error) {
+            toast.error("Erro ao excluir campanha.");
+        }
+    }
+
+    async function updateVoting() {
+        if (!activeVoting) return;
+        try {
+            const { error } = await supabase
+                .from("cepfm_votacoes")
+                .update({
+                    titulo: votingTitle,
+                    data_inicio: new Date(startDate).toISOString(),
+                    data_fim: new Date(endDate).toISOString(),
+                    parceiros_instagram: instaLinks
+                })
+                .eq("id", activeVoting.id);
+
+            if (error) throw error;
+            toast.success("Alterações salvas!");
+            fetchBaseData();
+        } catch (error) {
+            toast.error("Erro ao atualizar campanha.");
         }
     }
 
@@ -927,29 +986,58 @@ export default function CEPFMAdminPage() {
                                                     Sistema {activeVoting ? 'Operando' : 'Em Standby'}
                                                 </span>
                                             </div>
-                                            <Button
-                                                onClick={async () => {
-                                                    try {
-                                                        await supabase.from("cepfm_votacoes").update({ ativa: false }).eq("ativa", true);
-                                                        const { data, error } = await supabase.from("cepfm_votacoes").insert({
-                                                            titulo: votingTitle,
-                                                            data_inicio: new Date(startDate).toISOString(),
-                                                            data_fim: new Date(endDate).toISOString(),
-                                                            ativa: true,
-                                                            parceiros_instagram: instaLinks
-                                                        }).select().single();
-                                                        if (error) throw error;
-                                                        toast.success("Campanha Iniciada!");
-                                                        setActiveVoting(data);
-                                                        fetchBaseData();
-                                                    } catch (e) {
-                                                        toast.error("Falha ao lançar votação");
-                                                    }
-                                                }}
-                                                className="bg-white hover:bg-zinc-100 text-black font-black uppercase text-xs tracking-[0.3em] h-16 px-12 rounded-2xl shadow-2xl shadow-white/5 transition-all active:scale-95"
-                                            >
-                                                Lançar Nova Campanha
-                                            </Button>
+
+                                            <div className="flex flex-wrap items-center justify-center gap-4">
+                                                {activeVoting ? (
+                                                    <>
+                                                        <Button
+                                                            onClick={updateVoting}
+                                                            className="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase text-xs tracking-[0.3em] h-16 px-8 rounded-2xl shadow-xl transition-all active:scale-95"
+                                                        >
+                                                            <Save className="w-5 h-5 mr-2" /> Salvar Alterações
+                                                        </Button>
+                                                        <Button
+                                                            onClick={deactivateVoting}
+                                                            variant="outline"
+                                                            className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white font-black uppercase text-[10px] tracking-[0.3em] h-16 px-8 rounded-2xl transition-all"
+                                                        >
+                                                            Desativar
+                                                        </Button>
+                                                        <Button
+                                                            onClick={deleteVoting}
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="w-16 h-16 rounded-2xl text-zinc-500 hover:text-red-500 hover:bg-red-500/10"
+                                                        >
+                                                            <Trash2 className="w-6 h-6" />
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <Button
+                                                        onClick={async () => {
+                                                            try {
+                                                                await supabase.from("cepfm_votacoes").update({ ativa: false }).eq("ativa", true);
+                                                                const { data, error } = await supabase.from("cepfm_votacoes").insert({
+                                                                    titulo: votingTitle,
+                                                                    data_inicio: new Date(startDate).toISOString(),
+                                                                    data_fim: new Date(endDate).toISOString(),
+                                                                    ativa: true,
+                                                                    parceiros_instagram: instaLinks
+                                                                }).select().single();
+                                                                if (error) throw error;
+                                                                toast.success("Campanha Iniciada!");
+                                                                setActiveVoting(data);
+                                                                fetchBaseData();
+                                                            } catch (e) {
+                                                                toast.error("Falha ao lançar votação");
+                                                            }
+                                                        }}
+                                                        className="bg-white hover:bg-zinc-100 text-black font-black uppercase text-xs tracking-[0.3em] h-16 px-12 rounded-2xl shadow-2xl shadow-white/5 transition-all active:scale-95"
+                                                    >
+                                                        Lançar Nova Campanha
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
