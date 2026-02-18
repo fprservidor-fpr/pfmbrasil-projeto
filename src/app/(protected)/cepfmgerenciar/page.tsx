@@ -547,42 +547,42 @@ export default function CEPFMAdminPage() {
                                     </Button>
                                 </CardHeader>
                                 <CardContent className="p-0 overflow-x-auto">
-                                    <Table>
-                                        <TableHeader className="bg-white/[0.02]">
+                                    <Table className="border-collapse">
+                                        <TableHeader className="bg-zinc-950/50 sticky top-0 z-30">
                                             <TableRow className="border-white/5 hover:bg-transparent">
-                                                <TableHead className="w-[280px] p-8 text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em]">Patrulha</TableHead>
+                                                <TableHead className="w-[220px] min-w-[220px] p-6 text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em] sticky left-0 z-40 bg-zinc-950">Patrulha</TableHead>
                                                 {modalidades.map(m => (
-                                                    <TableHead key={m.id} className="text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[140px] px-4">{m.nome}</TableHead>
+                                                    <TableHead key={m.id} className="text-zinc-500 font-black uppercase text-[9px] tracking-[0.2em] text-center min-w-[110px] px-2">{m.nome}</TableHead>
                                                 ))}
-                                                <TableHead className="text-yellow-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[140px] bg-yellow-500/5">Total</TableHead>
+                                                <TableHead className="text-yellow-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[110px] bg-yellow-500/5 sticky right-0 z-40 bg-zinc-950">Total</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             <AnimatePresence>
                                                 {patrulhas.map((p, idx) => (
                                                     <TableRow key={p.id} className="border-white/5 hover:bg-white/[0.03] transition-colors group">
-                                                        <TableCell className="p-8">
-                                                            <div className="flex items-center gap-5">
-                                                                <span className="text-zinc-700 font-black italic text-2xl group-hover:text-yellow-500 transition-colors">0{idx + 1}</span>
-                                                                <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-white/5 p-2 overflow-hidden shadow-inner shrink-0 group-hover:border-yellow-500/30 transition-all">
+                                                        <TableCell className="p-6 sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-sm group-hover:bg-zinc-900 transition-colors border-r border-white/5">
+                                                            <div className="flex items-center gap-4">
+                                                                <span className="text-zinc-700 font-black italic text-xl group-hover:text-yellow-500 transition-colors">0{idx + 1}</span>
+                                                                <div className="w-10 h-10 rounded-xl bg-zinc-950 border border-white/5 p-1.5 overflow-hidden shadow-inner shrink-0 group-hover:border-yellow-500/30 transition-all">
                                                                     <img src={p.logo_url} alt="" className="w-full h-full object-contain" />
                                                                 </div>
-                                                                <span className="font-black uppercase tracking-tight text-lg text-white group-hover:translate-x-1 transition-transform">{p.nome}</span>
+                                                                <span className="font-black uppercase tracking-tight text-sm text-zinc-300 group-hover:text-white transition-all whitespace-nowrap">{p.nome}</span>
                                                             </div>
                                                         </TableCell>
                                                         {modalidades.map(m => (
-                                                            <TableCell key={m.id} className="px-4 py-8">
-                                                                <div className="relative group/input">
+                                                            <TableCell key={m.id} className="px-2 py-6">
+                                                                <div className="relative group/input flex justify-center">
                                                                     <Input
                                                                         type="number"
                                                                         value={scores[p.id]?.[m.id] || 0}
                                                                         onChange={(e) => handleScoreChange(p.id, m.id, e.target.value)}
-                                                                        className="bg-zinc-950/50 border-white/5 text-center font-black focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 rounded-xl h-12 w-24 mx-auto transition-all text-white"
+                                                                        className="bg-zinc-950/50 border-white/10 text-center font-black focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 rounded-xl h-11 w-20 transition-all text-white p-0"
                                                                     />
                                                                 </div>
                                                             </TableCell>
                                                         ))}
-                                                        <TableCell className="text-center font-black text-2xl text-yellow-500 bg-yellow-500/[0.03]">
+                                                        <TableCell className="text-center font-black text-xl text-yellow-500 bg-yellow-500/[0.03] sticky right-0 z-20 bg-zinc-950/90 backdrop-blur-sm border-l border-white/5">
                                                             {calculateTotal(p.id)}
                                                         </TableCell>
                                                     </TableRow>

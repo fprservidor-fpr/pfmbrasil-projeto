@@ -152,14 +152,14 @@ export default function CEPFMPage() {
 
                 const basePoints = ptsData?.reduce((acc, curr) => acc + curr.pontos, 0) || 0;
 
-                // Sum votes for this patrol
+                // Sum votes for this patrol (separate from technical points)
                 const campaignVotes = votesData
                     ?.filter(v => v.patrulha_id === p.id)
                     .reduce((acc, curr) => acc + curr.votos_contabilizados, 0) || 0;
 
                 return {
                     ...p,
-                    points: basePoints + campaignVotes,
+                    points: basePoints,
                     campaign_votes: campaignVotes
                 };
             }));
@@ -437,22 +437,18 @@ export default function CEPFMPage() {
 
                                     <div className="bg-white/5 rounded-2xl px-6 py-4 border border-white/5 mb-6 w-full max-w-[200px]">
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Acumulado</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Pontuação Técnica</span>
                                             <span className="text-4xl font-black italic tabular-nums">{patrulha.points}</span>
                                         </div>
 
-                                        <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2">
-                                            <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400">
-                                                <span>Modalidades:</span>
-                                                <span className="text-white">{(patrulha.points || 0) - ((patrulha as any).campaign_votes || 0)}</span>
-                                            </div>
-                                            {(patrulha as any).campaign_votes > 0 && (
+                                        {(patrulha as any).campaign_votes > 0 && (
+                                            <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2">
                                                 <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-yellow-500">
-                                                    <span>Votos Ativos:</span>
-                                                    <span>+{(patrulha as any).campaign_votes}</span>
+                                                    <span>Votos Populares:</span>
+                                                    <span>{(patrulha as any).campaign_votes}</span>
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="text-zinc-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 group-hover:text-white transition-colors">
@@ -587,19 +583,27 @@ export default function CEPFMPage() {
                                         <div className="space-y-6">
                                             {timeLeft === "ENCERRADO" ? (
                                                 <div className="space-y-6">
-                                                    <div className="p-6 bg-yellow-400/10 border border-yellow-400/20 rounded-3xl text-center">
-                                                        <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                                                        <h4 className="text-xl font-black uppercase text-white italic">Vencedora</h4>
-                                                        <p className="text-yellow-400 text-3xl font-black uppercase tracking-tight mt-1">{patrulhas[0]?.nome}</p>
-                                                    </div>
-                                                    <div className="flex flex-col gap-3">
-                                                        {patrulhas.map((p, i) => (
-                                                            <div key={p.id} className="flex items-center justify-between text-xs font-black uppercase tracking-widest px-4">
-                                                                <span className="text-zinc-500">{i + 1}º {p.nome}</span>
-                                                                <span className="text-white">{(p as any).campaign_votes} VOTOS</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                    {(() => {
+                                                        const sortedByVotes = [...patrulhas].sort((a, b) => ((b as any).campaign_votes || 0) - ((a as any).campaign_votes || 0));
+                                                        const winner = sortedByVotes[0];
+                                                        return (
+                                                            <>
+                                                                <div className="p-6 bg-yellow-400/10 border border-yellow-400/20 rounded-3xl text-center">
+                                                                    <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                                                                    <h4 className="text-xl font-black uppercase text-white italic">Vencedora</h4>
+                                                                    <p className="text-yellow-400 text-3xl font-black uppercase tracking-tight mt-1">{winner?.nome}</p>
+                                                                </div>
+                                                                <div className="flex flex-col gap-3">
+                                                                    {sortedByVotes.map((p, i) => (
+                                                                        <div key={p.id} className="flex items-center justify-between text-xs font-black uppercase tracking-widest px-4">
+                                                                            <span className="text-zinc-500">{i + 1}º {p.nome}</span>
+                                                                            <span className="text-white">{(p as any).campaign_votes} VOTOS</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             ) : (
                                                 <>
