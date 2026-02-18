@@ -76,15 +76,19 @@ export default function AlunoPage() {
       const today = new Date().toISOString().split('T')[0];
       const nextWeek = addDays(new Date(), 7).toISOString().split('T')[0];
 
-      const [studentRes, eventsRes, behaviorRes, missoesRes] = await Promise.all([
+      const [studentRes, eventsRes, behaviorRes, missoesRes, memberRes] = await Promise.all([
         supabase.from("students").select("*").eq("id", studentId).single(),
         supabase.from("calendario_letivo").select("*").eq("visivel_aluno", true).gte("data", today).order("data", { ascending: true }),
         supabase.from("comportamentos").select("*").eq("aluno_id", studentId).order("created_at", { ascending: false }),
-        supabase.from("missoes_atividades").select("*, missoes_materiais(material:study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true })
+        supabase.from("missoes_atividades").select("*, missoes_materiais(material:study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true }),
+        supabase.from("cepfm_membros").select("*, cepfm_patrulhas(*)").eq("aluno_id", studentId).maybeSingle()
       ]);
 
       if (studentRes.data) {
-        setStudent(studentRes.data);
+        setStudent({
+          ...studentRes.data,
+          cepfm: memberRes.data
+        });
 
         const filteredMissoes = (missoesRes.data || []).filter(m => {
           if (!m.turma_id) return true;
@@ -193,6 +197,11 @@ export default function AlunoPage() {
               <span className="px-4 py-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 backdrop-blur-md">
                 Ativo no Sistema
               </span>
+              {student?.cepfm?.cepfm_patrulhas && (
+                <span className="px-4 py-1.5 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-widest rounded-full border border-yellow-500/20 backdrop-blur-md flex items-center gap-2">
+                  <Trophy className="w-3 h-3" /> Patrulha {student.cepfm.cepfm_patrulhas.nome}
+                </span>
+              )}
             </div>
             <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-2">
               Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">{student?.nome_guerra || student?.nome_completo?.split(" ")[0]}!</span>

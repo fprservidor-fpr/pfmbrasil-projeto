@@ -48,10 +48,10 @@ export default function StudentCEPFMPage() {
     const [members, setMembers] = useState<Membro[]>([]);
 
     useEffect(() => {
-        if (profile?.id) {
+        if (profile?.student_id) {
             fetchStudentData();
         }
-    }, [profile?.id]);
+    }, [profile?.student_id]);
 
     async function fetchStudentData() {
         try {
@@ -67,8 +67,8 @@ export default function StudentCEPFMPage() {
             const { data: memberData } = await supabase
                 .from("cepfm_membros")
                 .select("*")
-                .eq("aluno_id", profile?.id)
-                .single();
+                .eq("aluno_id", profile?.student_id)
+                .maybeSingle();
 
             // Calculate total points for each patrol
             const patrolPoints: Record<string, number> = {};
