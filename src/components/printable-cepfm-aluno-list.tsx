@@ -19,13 +19,13 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
         return (
             <div
                 ref={ref}
-                className="bg-white text-black p-0 mx-auto printable-area"
+                className="bg-white text-black p-0 mx-auto text-[11px] printable-area"
                 style={{
                     fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
                     boxSizing: 'border-box',
-                    width: '794px', // A4 em pixels (96dpi)
-                    minHeight: '1123px',
-                    padding: '40px',
+                    width: '210mm',
+                    maxWidth: '210mm',
+                    padding: '10mm',
                     backgroundColor: 'white'
                 }}
             >
@@ -33,23 +33,46 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
           @media print {
             @page { 
               size: A4 portrait; 
-              margin: 0; 
+              margin: 10mm; 
             }
-            body { 
+            html, body { 
               margin: 0 !important; 
               padding: 0 !important;
+              width: 210mm !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
               background-color: white !important;
             }
             .printable-area {
-              width: 210mm !important;
-              min-height: 297mm !important;
-              padding: 10mm 15mm !important;
+              width: 100% !important;
+              max-width: 100% !important;
               margin: 0 !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+              font-size: 10px !important;
               background-color: white !important;
+              display: block !important;
+            }
+            table {
+              width: 100% !important;
+              table-layout: fixed !important;
+              border-collapse: collapse !important;
+            }
+            td, th {
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              border: 1px solid black !important;
             }
           }
-          .printable-area {
-            font-size: 10px;
+          @media screen {
+            .printable-area {
+              box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+          }
+          .printable-area * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           table {
             border-collapse: collapse;
@@ -76,12 +99,14 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
           }
         `}</style>
 
-                <div className="mb-8 border-b-2 border-black pb-4 text-center">
-                    <h1 className="text-lg font-black uppercase tracking-tight text-black leading-none mb-2">RELAÇÃO DE ALUNOS - CEPFM 2026</h1>
-                    <p className="text-[10px] font-bold text-black uppercase tracking-[0.3em]">CONTROLE DE DISTRIBUIÇÃO E PATRULHAS</p>
+                <div className="flex justify-between items-center border-b-2 border-black mb-4 pb-2">
+                    <div className="flex-1">
+                        <h1 className="text-xl font-black uppercase tracking-tight text-black leading-none mb-1">RELAÇÃO DE ALUNOS - CEPFM 2026</h1>
+                        <p className="text-xs font-bold text-black uppercase tracking-widest">CONTROLE DE DISTRIBUIÇÃO E PATRULHAS</p>
+                    </div>
                 </div>
 
-                <table className="w-full">
+                <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                     <thead>
                         <tr>
                             <th style={{ width: '15%' }}>Turma</th>
@@ -92,14 +117,14 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
                     </thead>
                     <tbody>
                         {students.map((student, idx) => (
-                            <tr key={idx} style={{ breakInside: 'avoid' }}>
-                                <td className="font-bold uppercase text-[9px]">{student.turma || "---"}</td>
-                                <td className="uppercase text-[9px]">
+                            <tr key={idx} className="border-b border-black" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                                <td className="px-2 py-1.5 align-top font-bold uppercase text-[9px]">{student.turma || "---"}</td>
+                                <td className="px-2 py-1.5 align-top uppercase text-[9px]">
                                     <span className="font-mono text-[8px] block opacity-70">#{student.matricula_pfm || "---"}</span>
                                     <span className="font-black">{student.nome_guerra}</span>
                                 </td>
-                                <td className="uppercase text-[8px] font-medium">{student.nome_completo}</td>
-                                <td className="py-2">
+                                <td className="px-2 py-1.5 align-top uppercase text-[8px] font-medium">{student.nome_completo}</td>
+                                <td className="px-2 py-1.5 align-top">
                                     <div className="grid grid-cols-2 gap-y-1">
                                         <span className="patrol-option">
                                             <span className="mr-1">( )</span> Águia
