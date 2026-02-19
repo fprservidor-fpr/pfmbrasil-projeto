@@ -19,60 +19,33 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
         return (
             <div
                 ref={ref}
-                className="bg-white text-black p-0 mx-auto text-[11px] printable-area"
+                className="bg-white text-black p-0 mx-auto printable-area"
                 style={{
                     fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
                     boxSizing: 'border-box',
-                    width: '210mm',
-                    maxWidth: '210mm',
-                    padding: '10mm',
-                    backgroundColor: 'white'
+                    width: '794px', // Exatamente A4 em pixels @ 96dpi
+                    minHeight: '1123px', // Exatamente A4 em pixels @ 96dpi
+                    padding: '40px',
+                    backgroundColor: 'white',
+                    display: 'flex',
+                    flexDirection: 'column'
                 }}
             >
                 <style jsx global>{`
           @media print {
             @page { 
               size: A4 portrait; 
-              margin: 10mm; 
+              margin: 0; 
             }
-            html, body { 
+            body { 
               margin: 0 !important; 
               padding: 0 !important;
-              width: 210mm !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              background-color: white !important;
-            }
-            .printable-area {
-              width: 100% !important;
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              box-shadow: none !important;
-              border: none !important;
-              font-size: 10px !important;
-              background-color: white !important;
-              display: block !important;
-            }
-            table {
-              width: 100% !important;
-              table-layout: fixed !important;
-              border-collapse: collapse !important;
-            }
-            td, th {
-              word-wrap: break-word !important;
-              overflow-wrap: break-word !important;
-              border: 1px solid black !important;
             }
           }
-          @media screen {
-            .printable-area {
-              box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            }
-          }
-          .printable-area * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+          /* Force styles during PDF generation */
+          .printable-area {
+             width: 794px !important;
+             min-height: 1123px !important;
           }
           table {
             border-collapse: collapse;
@@ -81,72 +54,86 @@ export const PrintableCEPFMAlunoList = forwardRef<HTMLDivElement, PrintableCEPFM
           }
           th, td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 4px 6px;
             text-align: left;
             word-break: break-all;
+            vertical-align: middle;
           }
           th {
-            background-color: #f8f9fa;
+            background-color: #f3f4f6;
             font-weight: 800;
             text-transform: uppercase;
-            font-size: 9px;
+            font-size: 10px;
+          }
+          td {
+            font-size: 10px;
           }
           .patrol-option {
-            font-size: 8px;
+            font-size: 9px;
             display: inline-flex;
             align-items: center;
-            margin-right: 8px;
+            margin-right: 10px;
+            white-space: nowrap;
           }
         `}</style>
 
-                <div className="flex justify-between items-center border-b-2 border-black mb-4 pb-2">
-                    <div className="flex-1">
-                        <h1 className="text-xl font-black uppercase tracking-tight text-black leading-none mb-1">RELAÇÃO DE ALUNOS - CEPFM 2026</h1>
-                        <p className="text-xs font-bold text-black uppercase tracking-widest">CONTROLE DE DISTRIBUIÇÃO E PATRULHAS</p>
+                <div className="mb-6 flex justify-between items-end border-b-2 border-black pb-4">
+                    <div>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-black leading-none mb-1">RELAÇÃO DE ALUNOS</h1>
+                        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.3em]">CEPFM 2026 - CONTROLE DE EFETIVO</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-bold text-black uppercase">DATA: {new Date().toLocaleDateString('pt-BR')}</p>
                     </div>
                 </div>
 
-                <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-                    <thead>
-                        <tr>
-                            <th style={{ width: '15%' }}>Turma</th>
-                            <th style={{ width: '25%' }}>Matrícula / Guerra</th>
-                            <th style={{ width: '30%' }}>Nome Completo</th>
-                            <th style={{ width: '30%' }}>Patrulha</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {students.map((student, idx) => (
-                            <tr key={idx} className="border-b border-black" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-                                <td className="px-2 py-1.5 align-top font-bold uppercase text-[9px]">{student.turma || "---"}</td>
-                                <td className="px-2 py-1.5 align-top uppercase text-[9px]">
-                                    <span className="font-mono text-[8px] block opacity-70">#{student.matricula_pfm || "---"}</span>
-                                    <span className="font-black">{student.nome_guerra}</span>
-                                </td>
-                                <td className="px-2 py-1.5 align-top uppercase text-[8px] font-medium">{student.nome_completo}</td>
-                                <td className="px-2 py-1.5 align-top">
-                                    <div className="grid grid-cols-2 gap-y-1">
-                                        <span className="patrol-option">
-                                            <span className="mr-1">( )</span> Águia
-                                        </span>
-                                        <span className="patrol-option">
-                                            <span className="mr-1">( )</span> Tubarão
-                                        </span>
-                                        <span className="patrol-option">
-                                            <span className="mr-1">( )</span> Leão
-                                        </span>
-                                        <span className="patrol-option">
-                                            <span className="mr-1">( )</span> Tigre
-                                        </span>
-                                    </div>
-                                </td>
+                <div className="flex-1">
+                    <table className="w-full">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '12%' }}>Turma</th>
+                                <th style={{ width: '23%' }}>Matrícula / Guerra</th>
+                                <th style={{ width: '30%' }}>Nome Completo</th>
+                                <th style={{ width: '35%' }}>Patrulha</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {students.map((student, idx) => (
+                                <tr key={idx} style={{ breakInside: 'avoid' }}>
+                                    <td className="font-bold uppercase text-[9px] text-center">{student.turma || "-"}</td>
+                                    <td className="uppercase">
+                                        <div className="flex flex-col">
+                                            <span className="font-mono text-[8px] text-zinc-500 leading-none mb-0.5">#{student.matricula_pfm || "---"}</span>
+                                            <span className="font-black text-[10px] leading-tight">{student.nome_guerra}</span>
+                                        </div>
+                                    </td>
+                                    <td className="uppercase text-[9px] font-medium leading-tight">{student.nome_completo}</td>
+                                    <td className="py-1.5">
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="patrol-option">
+                                                <span className="w-3 h-3 border border-black inline-block mr-1 rounded-sm"></span> Águia
+                                            </span>
+                                            <span className="patrol-option">
+                                                <span className="w-3 h-3 border border-black inline-block mr-1 rounded-sm"></span> Tubarão
+                                            </span>
+                                            <span className="patrol-option">
+                                                <span className="w-3 h-3 border border-black inline-block mr-1 rounded-sm"></span> Leão
+                                            </span>
+                                            <span className="patrol-option">
+                                                <span className="w-3 h-3 border border-black inline-block mr-1 rounded-sm"></span> Tigre
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                <div className="mt-auto pt-4 text-right text-[8px] text-zinc-500 uppercase italic">
-                    Gerado em {new Date().toLocaleString('pt-BR')} - PFM SYSTEM
+                <div className="mt-8 pt-4 border-t border-black/20 text-center">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                        Fundação Populus Rationabilis - Sistema de Gestão Integrada
+                    </p>
                 </div>
             </div>
         );
