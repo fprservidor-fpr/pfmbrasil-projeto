@@ -437,14 +437,26 @@ export default function CEPFMAdminPage() {
     const currentPatrulha = patrulhas.find(p => p.id === selectedPatrulhaId);
 
     const handleExportPDF = async () => {
-        if (!studentListRef.current) return;
+        const activeCount = allStudents.filter(s => s.status === 'ativo').length;
+        if (activeCount === 0) {
+            toast.error("Não há alunos ativos para gerar a lista.");
+            return;
+        }
+
+        if (!studentListRef.current) {
+            toast.error("Ocorreu um erro ao preparar o documento.");
+            return;
+        }
+
         setExportingPDF(true);
+        const loadingToast = toast.loading("Gerando PDF da lista de alunos...");
+
         try {
             await generatePDF(studentListRef.current, "Lista_Alunos_CEPFM.pdf");
-            toast.success("PDF gerado com sucesso!");
+            toast.success("PDF gerado com sucesso!", { id: loadingToast });
         } catch (error) {
-            console.error(error);
-            toast.error("Erro ao gerar PDF.");
+            console.error("PDF Export Error:", error);
+            toast.error("Erro ao gerar PDF. Tente novamente.", { id: loadingToast });
         } finally {
             setExportingPDF(false);
         }
@@ -1159,8 +1171,8 @@ export default function CEPFMAdminPage() {
                 </div>
             </footer>
 
-            {/* Hidden Printable Area */}
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+            {/* Hidden Printable Area - Using opacity/fixed for better capture reliability */}
+            <div style={{ position: 'fixed', left: '-10000px', top: '0', opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={studentListRef}>
                     <PrintableCEPFMAlunoList
                         students={allStudents.filter(s => s.status === 'ativo').sort((a: any, b: any) => {
