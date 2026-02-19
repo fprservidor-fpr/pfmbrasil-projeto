@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Users,
     Vote,
@@ -16,8 +16,12 @@ import {
     CheckCircle2,
     Info,
     BarChart3,
-    Target
+    Target,
+    Printer,
+    FileText
 } from "lucide-react";
+import { generatePDF } from "@/lib/pdf-utils";
+import { PrintableCEPFMAlunoList } from "@/components/printable-cepfm-aluno-list";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +111,8 @@ export default function CEPFMAdminPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isSeeding, setIsSeeding] = useState(false);
+    const [exportingPDF, setExportingPDF] = useState(false);
+    const studentListRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchBaseData();
@@ -164,7 +170,7 @@ export default function CEPFMAdminPage() {
                 supabase.from("cepfm_pontuacoes").select("*"),
                 supabase.from("cepfm_membros").select("*"),
                 supabase.from("cepfm_votacoes").select("*").eq("ativa", true).single(),
-                supabase.from("students").select("id, nome_guerra, nome_completo, matricula_pfm, status")
+                supabase.from("students").select("id, nome_guerra, nome_completo, matricula_pfm, status, turma, ano_ingresso, numero_ordem")
             ]);
 
             if (pRes.data) {
@@ -430,6 +436,20 @@ export default function CEPFMAdminPage() {
 
     const currentPatrulha = patrulhas.find(p => p.id === selectedPatrulhaId);
 
+    const handleExportPDF = async () => {
+        if (!studentListRef.current) return;
+        setExportingPDF(true);
+        try {
+            await generatePDF(studentListRef.current, "Lista_Alunos_CEPFM.pdf");
+            toast.success("PDF gerado com sucesso!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao gerar PDF.");
+        } finally {
+            setExportingPDF(false);
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen bg-[#050505] flex items-center justify-center">
             <motion.div
@@ -464,6 +484,16 @@ export default function CEPFMAdminPage() {
                                 className="h-6 rounded-full bg-red-500 text-white text-[8px] font-black uppercase px-2 hover:bg-red-400"
                             >
                                 {isSeeding ? "Processando..." : "Semear Dados Iniciais"}
+                            </Button>
+                        )}
+                        {patrulhas.length > 0 && (
+                            <Button
+                                onClick={handleExportPDF}
+                                disabled={exportingPDF}
+                                className="h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 text-[10px] font-black uppercase px-4 hover:bg-emerald-500/30 transition-all flex items-center gap-2"
+                            >
+                                {exportingPDF ? <Loader2 className="w-3 h-3 animate-spin" /> : <Printer className="w-3 h-3" />}
+                                Lista Alunos (PDF)
                             </Button>
                         )}
                     </motion.div>
@@ -1128,6 +1158,37 @@ export default function CEPFMAdminPage() {
                     </div>
                 </div>
             </footer>
+
+            {/* Hidden Printable Area */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={studentListRef}>
+                    <PrintableCEPFMAlunoList
+                        students={allStudents.filter(s => s.status === 'ativo').sort((a: any, b: any) => {
+                            // Sort by ano_ingresso ASC (Oldest to Newest)
+                            const yearA = a.ano_ingresso || 0;
+                            const yearB = b.ano_ingresso || 0;
+                            if (yearA !== yearB) {
+                                return yearA - yearB;
+                            }
+
+                            // Helper to get order number from field or matricula (xx part of xx/aa)
+                            const getOrder = (s: any) => {
+                                if (s.numero_ordem !== null && s.numero_ordem !== undefined) return s.numero_ordem;
+                                if (s.matricula_pfm) {
+                                    const parts = s.matricula_pfm.split("/");
+                                    const num = parseInt(parts[0]);
+                                    if (!isNaN(num)) return num;
+                                }
+                                return 0;
+                            };
+
+                            const orderA = getOrder(a);
+                            const orderB = getOrder(b);
+                            return orderA - orderB;
+                        })}
+                    />
+                </div>
+            </div>
         </div>
     );
 }
