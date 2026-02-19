@@ -1,10 +1,20 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+// Regex to match modern CSS color functions unsupported by html2canvas
+const UNSUPPORTED_COLOR_RE = /oklch\([^)]*\)|oklab\([^)]*\)|lab\([^)]*\)|lch\([^)]*\)|color\([^)]*\)/gi;
+
 /**
- * Generates a PDF from an HTML element, handling common issues like oklch colors
- * and iframe rendering in certain environments.
- * Improved to handle multi-page layouts more reliably by using jsPDF's html method.
+ * Checks if a CSS value contains any unsupported modern color function.
+ */
+function hasUnsupportedColor(value: string): boolean {
+  return /oklch|oklab|\blab\(|\blch\(|\bcolor\(/i.test(value);
+}
+
+/**
+ * Generates a PDF from an HTML element, handling common issues like modern CSS
+ * color functions (oklch, oklab, lab, lch, color()) that html2canvas cannot parse.
+ * Uses jsPDF's html method for reliable multi-page layouts.
  */
 export async function generatePDF(element: HTMLElement, filename: string) {
   // Use jsPDF's built-in html method which is much better at handling page breaks
@@ -14,8 +24,8 @@ export async function generatePDF(element: HTMLElement, filename: string) {
   const originalStyle = element.getAttribute("style");
 
   try {
-    // PRE-PROCESSING: Fix unsupported oklch colors for html2canvas
-    // This is a common issue with Tailwind 4 and modern CSS
+    // PRE-PROCESSING: Fix ALL unsupported modern color functions for html2canvas
+    // Tailwind 4 uses oklch AND oklab extensively; html2canvas supports neither.
     const allElements = element.querySelectorAll("*");
     const elementsToRestore: Array<{ el: HTMLElement, style: string | null }> = [];
 
@@ -25,27 +35,28 @@ export async function generatePDF(element: HTMLElement, filename: string) {
     // Function to check and fix colors
     const fixColor = (el: HTMLElement) => {
       const computedStyle = window.getComputedStyle(el);
-      const properties = ["color", "backgroundColor", "borderColor", "borderTopColor", "borderBottomColor", "borderLeftColor", "borderRightColor", "outlineColor", "fill", "stroke"];
+      const properties = ["color", "backgroundColor", "borderColor", "borderTopColor", "borderBottomColor", "borderLeftColor", "borderRightColor", "outlineColor", "fill", "stroke", "textDecorationColor", "boxShadow", "caretColor"];
 
       let needsFix = false;
-      let inlineStyle = el.getAttribute("style") || "";
+      const savedStyle = el.getAttribute("style") || "";
 
       properties.forEach(prop => {
-        const value = (el.style as any)[prop] || computedStyle.getPropertyValue(prop.replace(/([A-Z])/g, "-$1").toLowerCase());
-        if (value && value.includes("oklch")) {
+        const cssProp = prop.replace(/([A-Z])/g, "-$1").toLowerCase();
+        const value = (el.style as any)[prop] || computedStyle.getPropertyValue(cssProp);
+        if (value && hasUnsupportedColor(value)) {
           needsFix = true;
-          // Replace oklch with a safe fallback (white or black depending on property)
-          // Since we're printing to PDF, white background and black text is usually safe
           if (prop.toLowerCase().includes("background")) {
-            el.style.setProperty(prop.replace(/([A-Z])/g, "-$1").toLowerCase(), "#ffffff", "important");
+            el.style.setProperty(cssProp, "#ffffff", "important");
+          } else if (prop.toLowerCase().includes("shadow")) {
+            el.style.setProperty(cssProp, "none", "important");
           } else {
-            el.style.setProperty(prop.replace(/([A-Z])/g, "-$1").toLowerCase(), "#000000", "important");
+            el.style.setProperty(cssProp, "#000000", "important");
           }
         }
       });
 
       if (needsFix) {
-        elementsToRestore.push({ el, style: inlineStyle });
+        elementsToRestore.push({ el, style: savedStyle });
       }
     };
 
@@ -108,12 +119,17 @@ export async function generatePDF(element: HTMLElement, filename: string) {
               clonedElement.style.minWidth = "794px";
             }
 
+            // Sanitize ALL stylesheets: replace oklch, oklab, lab, lch, color()
             const styles = clonedDoc.querySelectorAll("style");
-            styles.forEach(style => {
-              if (style.innerHTML.includes("oklch")) {
-                style.innerHTML = style.innerHTML.replace(/oklch\([^)]+\)/g, "#000000");
+            styles.forEach(styleEl => {
+              if (hasUnsupportedColor(styleEl.innerHTML)) {
+                styleEl.innerHTML = styleEl.innerHTML.replace(UNSUPPORTED_COLOR_RE, "#000000");
               }
             });
+
+            // Also fix computed styles on every element in the clone
+            const allCloned = clonedDoc.querySelectorAll("*");
+            allCloned.forEach(el => fixColor(el as HTMLElement));
           }
         }
       }).catch(err => {
