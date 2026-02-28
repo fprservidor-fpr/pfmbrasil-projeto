@@ -172,7 +172,7 @@ export default function ComportamentoPage() {
       studentsQuery,
       behaviorsQuery.order("created_at", { ascending: false }),
       supabase.from("occurrence_types").select("*").order("label"),
-      supabase.from("comportamento_ciclos").select("*, profiles:fechado_por(full_name)").order("data_fechamento", { ascending: false })
+      supabase.from("comportamento_ciclos").select("*").order("data_fechamento", { ascending: false })
     ]);
 
     if (alunosData) {
@@ -207,7 +207,7 @@ export default function ComportamentoPage() {
 
   useEffect(() => {
     if (selectedAluno) {
-      setSelectedMonth(""); // empty means current opened cycle
+      setSelectedMonth("current_cycle"); // current_cycle means current opened cycle
       fetchStudentHistory(selectedAluno.id);
     }
   }, [selectedAluno]);
@@ -224,7 +224,7 @@ export default function ComportamentoPage() {
   const calculateMonthlyScore = (alunoId: string, targetCicloNome?: string) => {
     let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    if (targetCicloNome) {
+    if (targetCicloNome && targetCicloNome !== "current_cycle") {
       const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
       if (targetIndex !== -1) {
         const targetCiclo = ciclos[targetIndex];
@@ -258,7 +258,7 @@ export default function ComportamentoPage() {
   const getAlunoHistory = (alunoId: string, targetCicloNome?: string) => {
     let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    if (targetCicloNome) {
+    if (targetCicloNome && targetCicloNome !== "current_cycle") {
       const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
       if (targetIndex !== -1) {
         const targetCiclo = ciclos[targetIndex];
@@ -299,7 +299,7 @@ export default function ComportamentoPage() {
   const getFilteredComportamentos = (alunoId: string, targetCicloNome?: string) => {
     let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    if (targetCicloNome) {
+    if (targetCicloNome && targetCicloNome !== "current_cycle") {
       const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
       if (targetIndex !== -1) {
         const targetCiclo = ciclos[targetIndex];
@@ -464,7 +464,7 @@ export default function ComportamentoPage() {
       if (cicloError) throw cicloError;
 
       const transitions = alunos.map(aluno => {
-        const score = calculateMonthlyScore(aluno.id, "");
+        const score = calculateMonthlyScore(aluno.id, "current_cycle");
         const nextLevel = getNextBehavior(aluno.comportamento_atual || "EXCEPCIONAL", score);
         return {
           id: aluno.id,
@@ -627,7 +627,7 @@ export default function ComportamentoPage() {
                       <SelectValue placeholder="Selecione o Ciclo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Ciclo Atual (Em Andamento)</SelectItem>
+                      <SelectItem value="current_cycle">Ciclo Atual (Em Andamento)</SelectItem>
                       {ciclos.map(c => (
                         <SelectItem key={c.id} value={c.nome}>
                           {c.nome} (Fechado em {format(new Date(c.data_fechamento), "dd/MM", { locale: ptBR })})
@@ -649,7 +649,7 @@ export default function ComportamentoPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <Card className="lg:col-span-4 bg-zinc-900/40 border-zinc-800 backdrop-blur-xl overflow-hidden rounded-3xl">
-                <div className={cn("h-2 w-full", (BEHAVIOR_LEVELS[selectedMonth ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).accent)} />
+                <div className={cn("h-2 w-full", (BEHAVIOR_LEVELS[selectedMonth && selectedMonth !== 'current_cycle' ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).accent)} />
                 <CardContent className="p-8">
                   <div className="relative w-32 h-32 mx-auto mb-6">
                     <div className={cn(
@@ -678,13 +678,13 @@ export default function ComportamentoPage() {
                     <div className="bg-zinc-950/50 border border-zinc-800 p-4 rounded-2xl text-center">
                       <p className="text-[10px] text-zinc-600 font-bold uppercase mb-1">Status Global</p>
                       <p className={cn("text-lg font-black", (BEHAVIOR_LEVELS[selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).textColor)}>
-                        {selectedMonth ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"}
+                        {selectedMonth && selectedMonth !== 'current_cycle' ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"}
                       </p>
                     </div>
                     <div className="bg-zinc-950/50 border border-zinc-800 p-4 rounded-2xl text-center">
                       <p className="text-[10px] text-zinc-600 font-bold uppercase mb-1">Pontuação</p>
                       <p className="text-2xl font-black text-white">
-                        {selectedMonth && studentHistory.find(h => h.periodo === selectedMonth)
+                        {selectedMonth && selectedMonth !== 'current_cycle' && studentHistory.find(h => h.periodo === selectedMonth)
                           ? studentHistory.find(h => h.periodo === selectedMonth)?.pontos_periodo
                           : calculateMonthlyScore(selectedAluno.id, selectedMonth)}
                       </p>
@@ -780,7 +780,7 @@ export default function ComportamentoPage() {
                 <Card className="bg-zinc-900/40 border-zinc-800 backdrop-blur-xl rounded-3xl">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      {selectedMonth ? `Ocorrências do Ciclo (${selectedMonth})` : 'Ocorrências do Ciclo Atual'}
+                      {selectedMonth && selectedMonth !== 'current_cycle' ? `Ocorrências do Ciclo (${selectedMonth})` : 'Ocorrências do Ciclo Atual'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
