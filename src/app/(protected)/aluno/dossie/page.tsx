@@ -72,6 +72,7 @@ export default function AlunoDossiePage() {
   const [reminders, setReminders] = useState<any[]>([]);
   const [missoes, setMissoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastFinalizedDate, setLastFinalizedDate] = useState<Date | null>(null);
 
   const studentId = profile?.role === "aluno" ? profile.student_id : (typeof window !== "undefined" ? sessionStorage.getItem("selectedStudentId") : null);
 
@@ -88,13 +89,14 @@ export default function AlunoDossiePage() {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
 
-      const [studentRes, behaviorRes, freqRes, eventosRes, calendarRes, missoesRes] = await Promise.all([
+      const [studentRes, behaviorRes, freqRes, eventosRes, calendarRes, missoesRes, ciclosRes] = await Promise.all([
         supabase.from("students").select("*").eq("id", id).single(),
         supabase.from("comportamentos").select("*").eq("aluno_id", id).order("created_at", { ascending: false }),
         supabase.from("frequencias").select("*").eq("aluno_id", id).eq("presenca", "justificada").order("data", { ascending: false }),
         supabase.from("eventos_notificacoes").select("*").eq("aluno_id", id).eq("lida", false).order("created_at", { ascending: false }).limit(3),
         supabase.from("calendario_letivo").select("*").gte("data", today).order("data", { ascending: true }).limit(10),
-        supabase.from("missoes_atividades").select("*, missoes_materiais(study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true })
+        supabase.from("missoes_atividades").select("*, missoes_materiais(study_materials(*))").gte("data_entrega", today).order("data_entrega", { ascending: true }),
+        supabase.from("comportamento_ciclos").select("data_fechamento").order("data_fechamento", { ascending: false }).limit(1)
       ]);
 
       if (studentRes.error) throw studentRes.error;
@@ -103,6 +105,12 @@ export default function AlunoDossiePage() {
       if (behaviorRes.data) setComportamentos(behaviorRes.data);
       if (freqRes.data) setFrequencias(freqRes.data);
       if (eventosRes.data) setEventos(eventosRes.data);
+
+      if (ciclosRes.data && ciclosRes.data.length > 0) {
+        setLastFinalizedDate(new Date(ciclosRes.data[0].data_fechamento));
+      } else {
+        setLastFinalizedDate(null);
+      }
 
       // Filter important reminders
       const allEvents = calendarRes.data || [];
@@ -147,16 +155,17 @@ export default function AlunoDossiePage() {
     setEventos(prev => prev.filter(e => e.id !== id));
   };
 
-  const calculateMonthlyScore = () => {
-    if (!student) return 100;
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const getCycleRegistros = () => {
+    let registros = [...comportamentos];
+    if (lastFinalizedDate) {
+      registros = registros.filter(r => new Date(r.created_at) > lastFinalizedDate);
+    }
+    return registros.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
 
-    const registros = comportamentos.filter(c =>
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const calculateScore = () => {
+    if (!student) return 100;
+    const registros = getCycleRegistros();
 
     let score = 100;
     registros.forEach(r => {
@@ -227,9 +236,10 @@ export default function AlunoDossiePage() {
     return mapping[val] || val || "Aprendiz";
   };
 
-  const score = calculateMonthlyScore();
-  const meritos = comportamentos.filter(c => c.tipo === 'merito').length;
-  const demeritos = comportamentos.filter(c => c.tipo === 'demerito').length;
+  const cycleRegistros = getCycleRegistros();
+  const score = calculateScore();
+  const meritosCount = cycleRegistros.filter(c => c.tipo === 'merito').length;
+  const demeritosCount = cycleRegistros.filter(c => c.tipo === 'demerito').length;
 
   const getBehaviorTrend = () => {
     if (score >= 80) return { label: "Tendência de Progressão / Manutenção Alta", color: "text-emerald-400", icon: TrendingUp };
@@ -379,7 +389,7 @@ export default function AlunoDossiePage() {
             </div>
             <div className="bg-slate-950/80 backdrop-blur p-4 rounded-2xl border border-white/10 text-center min-w-[120px] shadow-xl">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Méritos</p>
-              <p className="text-3xl font-black text-emerald-400">+{meritos}</p>
+              <p className="text-3xl font-black text-emerald-400">+{meritosCount}</p>
             </div>
           </div>
         </div>
@@ -593,19 +603,19 @@ export default function AlunoDossiePage() {
             </h2>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-white/5">
-                <span className="text-slate-400 text-xs">Pontuação Mensal</span>
+                <span className="text-slate-400 text-xs">Pontuação Ciclo Atual</span>
                 <span className={cn(
                   "font-bold text-sm",
                   score >= 80 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-red-400"
                 )}>{score}/100</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-white/5">
-                <span className="text-slate-400 text-xs">Méritos Totais</span>
-                <span className="font-bold text-emerald-400 text-sm">+{meritos}</span>
+                <span className="text-slate-400 text-xs">Méritos Totais (Ciclo)</span>
+                <span className="font-bold text-emerald-400 text-sm">+{meritosCount}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-white/5">
-                <span className="text-slate-400 text-xs">Deméritos Totais</span>
-                <span className="font-bold text-red-400 text-sm">-{comportamentos.filter(c => c.tipo === 'demerito').length}</span>
+                <span className="text-slate-400 text-xs">Deméritos Totais (Ciclo)</span>
+                <span className="font-bold text-red-400 text-sm">-{demeritosCount}</span>
               </div>
               <div className="p-3 bg-slate-950/50 rounded-xl border border-white/5">
                 <span className="text-slate-400 text-xs block mb-2">Avaliação</span>
