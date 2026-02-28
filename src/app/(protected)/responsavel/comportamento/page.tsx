@@ -47,17 +47,14 @@ export default function ResponsavelComportamentoPage() {
 
   async function fetchLastFinalized() {
     try {
-      const currentPeriod = format(new Date(), 'yyyy-MM');
       const { data, error } = await supabase
-        .from("behavior_history")
-        .select("created_at")
-        .eq("periodo", currentPeriod)
-        .eq("tipo_mudanca", "AUTO")
-        .order("created_at", { ascending: false })
+        .from("comportamento_ciclos")
+        .select("data_fechamento")
+        .order("data_fechamento", { ascending: false })
         .limit(1);
 
       if (data && data.length > 0) {
-        setLastFinalizedDate(new Date(data[0].created_at));
+        setLastFinalizedDate(new Date(data[0].data_fechamento));
       } else {
         setLastFinalizedDate(null);
       }
@@ -85,14 +82,7 @@ export default function ResponsavelComportamentoPage() {
   }
 
   const calculateScore = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-    let registros = comportamentos.filter(c =>
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    );
+    let registros = [...comportamentos];
 
     if (lastFinalizedDate) {
       registros = registros.filter(r => new Date(r.created_at) > lastFinalizedDate);

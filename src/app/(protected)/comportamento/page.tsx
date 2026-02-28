@@ -28,7 +28,8 @@ import {
   Sparkles,
   CalendarCheck,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Settings
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -145,6 +146,10 @@ export default function ComportamentoPage() {
   const [occurrenceTab, setOccurrenceTab] = useState<"merito" | "demerito">("merito");
   const [openStudentSelect, setOpenStudentSelect] = useState(false);
 
+  const [ciclos, setCiclos] = useState<any[]>([]);
+  const [showGerenciarCiclos, setShowGerenciarCiclos] = useState(false);
+  const [newCicloName, setNewCicloName] = useState("");
+
   const [manualUpdate, setManualUpdate] = useState({
     aluno_id: "",
     novo_nivel: "EXCEPCIONAL",
@@ -163,10 +168,11 @@ export default function ComportamentoPage() {
       behaviorsQuery = behaviorsQuery.eq("is_test", false);
     }
 
-    const [{ data: alunosData }, { data: comportamentosData }, { data: typesData }] = await Promise.all([
+    const [{ data: alunosData }, { data: comportamentosData }, { data: typesData }, { data: ciclosData }] = await Promise.all([
       studentsQuery,
       behaviorsQuery.order("created_at", { ascending: false }),
-      supabase.from("occurrence_types").select("*").order("label")
+      supabase.from("occurrence_types").select("*").order("label"),
+      supabase.from("comportamento_ciclos").select("*, profiles:fechado_por(full_name)").order("data_fechamento", { ascending: false })
     ]);
 
     if (alunosData) {
@@ -188,6 +194,7 @@ export default function ComportamentoPage() {
     }
     if (comportamentosData) setComportamentos(comportamentosData);
     if (typesData) setOccurrenceTypes(typesData);
+    if (ciclosData) setCiclos(ciclosData);
     setLoading(false);
   };
 
@@ -195,13 +202,12 @@ export default function ComportamentoPage() {
     fetchData();
   }, []);
 
-  const [finalizedDates, setFinalizedDates] = useState<Record<string, Date>>({});
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [studentHistory, setStudentHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (selectedAluno) {
-      setSelectedMonth(format(new Date(), 'yyyy-MM'));
+      setSelectedMonth(""); // empty means current opened cycle
       fetchStudentHistory(selectedAluno.id);
     }
   }, [selectedAluno]);
@@ -215,25 +221,22 @@ export default function ComportamentoPage() {
     if (data) setStudentHistory(data);
   };
 
-  const calculateMonthlyScore = (alunoId: string, targetMonth?: string) => {
-    const month = targetMonth || format(new Date(), 'yyyy-MM');
-    const isCurrentCycle = month === format(new Date(), 'yyyy-MM');
-    const dateToParse = month.length === 7 ? `${month}-01T00:00:00` : new Date().toISOString();
-    const start = startOfMonth(new Date(dateToParse));
-    const end = endOfMonth(start);
+  const calculateMonthlyScore = (alunoId: string, targetCicloNome?: string) => {
+    let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    let registros = comportamentos.filter(c =>
-      c.aluno_id === alunoId &&
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    );
-
-    const fdThisMonth = finalizedDates[month];
-    if (fdThisMonth) {
-      if (isCurrentCycle) {
-        registros = registros.filter(r => new Date(r.created_at) > fdThisMonth);
-      } else {
-        registros = registros.filter(r => new Date(r.created_at) <= fdThisMonth);
+    if (targetCicloNome) {
+      const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
+      if (targetIndex !== -1) {
+        const targetCiclo = ciclos[targetIndex];
+        const prevCiclo = ciclos[targetIndex + 1];
+        registros = registros.filter(r => new Date(r.created_at) <= new Date(targetCiclo.data_fechamento));
+        if (prevCiclo) {
+          registros = registros.filter(r => new Date(r.created_at) > new Date(prevCiclo.data_fechamento));
+        }
+      }
+    } else {
+      if (ciclos.length > 0) {
+        registros = registros.filter(r => new Date(r.created_at) > new Date(ciclos[0].data_fechamento));
       }
     }
 
@@ -252,25 +255,22 @@ export default function ComportamentoPage() {
     return score;
   };
 
-  const getAlunoHistory = (alunoId: string, targetMonth?: string) => {
-    const month = targetMonth || format(new Date(), 'yyyy-MM');
-    const isCurrentCycle = month === format(new Date(), 'yyyy-MM');
-    const dateToParse = month.length === 7 ? `${month}-01T00:00:00` : new Date().toISOString();
-    const start = startOfMonth(new Date(dateToParse));
-    const end = endOfMonth(start);
+  const getAlunoHistory = (alunoId: string, targetCicloNome?: string) => {
+    let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    let registros = comportamentos.filter(c =>
-      c.aluno_id === alunoId &&
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    );
-
-    const fdThisMonth = finalizedDates[month];
-    if (fdThisMonth) {
-      if (isCurrentCycle) {
-        registros = registros.filter(r => new Date(r.created_at) > fdThisMonth);
-      } else {
-        registros = registros.filter(r => new Date(r.created_at) <= fdThisMonth);
+    if (targetCicloNome) {
+      const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
+      if (targetIndex !== -1) {
+        const targetCiclo = ciclos[targetIndex];
+        const prevCiclo = ciclos[targetIndex + 1];
+        registros = registros.filter(r => new Date(r.created_at) <= new Date(targetCiclo.data_fechamento));
+        if (prevCiclo) {
+          registros = registros.filter(r => new Date(r.created_at) > new Date(prevCiclo.data_fechamento));
+        }
+      }
+    } else {
+      if (ciclos.length > 0) {
+        registros = registros.filter(r => new Date(r.created_at) > new Date(ciclos[0].data_fechamento));
       }
     }
 
@@ -296,25 +296,22 @@ export default function ComportamentoPage() {
     return history;
   };
 
-  const getFilteredComportamentos = (alunoId: string, targetMonth?: string) => {
-    const month = targetMonth || format(new Date(), 'yyyy-MM');
-    const isCurrentCycle = month === format(new Date(), 'yyyy-MM');
-    const dateToParse = month.length === 7 ? `${month}-01T00:00:00` : new Date().toISOString();
-    const start = startOfMonth(new Date(dateToParse));
-    const end = endOfMonth(start);
+  const getFilteredComportamentos = (alunoId: string, targetCicloNome?: string) => {
+    let registros = comportamentos.filter(c => c.aluno_id === alunoId);
 
-    let registros = comportamentos.filter(c =>
-      c.aluno_id === alunoId &&
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    );
-
-    const fdThisMonth = finalizedDates[month];
-    if (fdThisMonth) {
-      if (isCurrentCycle) {
-        registros = registros.filter(r => new Date(r.created_at) > fdThisMonth);
-      } else {
-        registros = registros.filter(r => new Date(r.created_at) <= fdThisMonth);
+    if (targetCicloNome) {
+      const targetIndex = ciclos.findIndex(c => c.nome === targetCicloNome);
+      if (targetIndex !== -1) {
+        const targetCiclo = ciclos[targetIndex];
+        const prevCiclo = ciclos[targetIndex + 1];
+        registros = registros.filter(r => new Date(r.created_at) <= new Date(targetCiclo.data_fechamento));
+        if (prevCiclo) {
+          registros = registros.filter(r => new Date(r.created_at) > new Date(prevCiclo.data_fechamento));
+        }
+      }
+    } else {
+      if (ciclos.length > 0) {
+        registros = registros.filter(r => new Date(r.created_at) > new Date(ciclos[0].data_fechamento));
       }
     }
     return registros.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -420,51 +417,54 @@ export default function ComportamentoPage() {
   };
 
   const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
-  const [lastFinalized, setLastFinalized] = useState<string | null>(null);
-
-  const checkLastFinalized = async () => {
-    const { data } = await supabase
-      .from("behavior_history")
-      .select("periodo, created_at")
-      .eq("tipo_mudanca", "AUTO")
-      .order("created_at", { ascending: false });
-
-    if (data && data.length > 0) {
-      const dates: Record<string, Date> = {};
-      data.forEach(d => {
-        if (!dates[d.periodo]) {
-          dates[d.periodo] = new Date(d.created_at);
-        }
-      });
-      setFinalizedDates(dates);
-      const currentPeriod = format(new Date(), 'yyyy-MM');
-      if (dates[currentPeriod]) {
-        setLastFinalized(currentPeriod);
-      } else {
-        setLastFinalized(null);
-      }
-    }
-  };
 
   useEffect(() => {
     fetchData();
-    checkLastFinalized();
   }, []);
+
+  const handleRevertCiclo = async (cicloId: string) => {
+    setSaving(true);
+    try {
+      const { data: histories } = await supabase.from("behavior_history").select("*").eq("ciclo_id", cicloId);
+
+      if (histories && histories.length > 0) {
+        for (const history of histories) {
+          if (history.student_id && history.nivel_anterior) {
+            await supabase.from("students").update({ comportamento_atual: history.nivel_anterior }).eq("id", history.student_id);
+          }
+        }
+      }
+
+      const { error } = await supabase.from("comportamento_ciclos").delete().eq("id", cicloId);
+      if (error) throw error;
+
+      toast.success("Ciclo revertido com sucesso! A pontuação voltou para o limite anterior.");
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao tentar reverter o ciclo.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleFinalizeMonth = async () => {
     if (profile?.role !== 'admin' && profile?.role !== 'instrutor' && profile?.role !== 'instructor') return;
-
-    const currentPeriod = format(new Date(), 'yyyy-MM');
-    if (lastFinalized === currentPeriod) {
-      toast.error("O ciclo deste mês já foi processado e finalizado.");
-      setShowConfirmFinalize(false);
+    if (!newCicloName.trim()) {
+      toast.error("Informe o nome para registrar no dossiê.");
       return;
     }
 
     setSaving(true);
     try {
+      const { data: novoCiclo, error: cicloError } = await supabase.from("comportamento_ciclos").insert([{
+        nome: newCicloName,
+        fechado_por: profile?.id
+      }]).select().single();
+
+      if (cicloError) throw cicloError;
+
       const transitions = alunos.map(aluno => {
-        const score = calculateMonthlyScore(aluno.id);
+        const score = calculateMonthlyScore(aluno.id, "");
         const nextLevel = getNextBehavior(aluno.comportamento_atual || "EXCEPCIONAL", score);
         return {
           id: aluno.id,
@@ -482,15 +482,16 @@ export default function ComportamentoPage() {
           nivel_anterior: t.prevLevel || 'EXCEPCIONAL',
           nivel_novo: t.comportamento_atual,
           pontos_periodo: t.score,
-          periodo: currentPeriod,
+          periodo: newCicloName,
           tipo_mudanca: 'AUTO',
-          justificativa: `Fechamento mensal automático - Pontuação: ${t.score}`
+          justificativa: `Fechamento de ciclo: ${newCicloName}`,
+          ciclo_id: novoCiclo.id
         }]);
       }
 
-      toast.success("Transições mensais aplicadas com sucesso!");
-      setLastFinalized(currentPeriod);
+      toast.success("Transições aplicadas e ciclo salvo com sucesso!");
       setShowConfirmFinalize(false);
+      setNewCicloName("");
       fetchData();
     } catch (error: any) {
       console.error("Erro no fechamento:", error);
@@ -563,6 +564,14 @@ export default function ComportamentoPage() {
           <>
             <Button
               variant="outline"
+              onClick={() => setShowGerenciarCiclos(true)}
+              className="bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-all backdrop-blur-sm rounded-xl h-12"
+            >
+              <Settings className="w-4 h-4 mr-2 text-zinc-400" />
+              Ver Ciclos Salvos
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowManualModal(true)}
               className="bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-all backdrop-blur-sm rounded-xl h-12"
             >
@@ -576,7 +585,7 @@ export default function ComportamentoPage() {
               className="bg-zinc-900/50 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all backdrop-blur-sm rounded-xl h-12"
             >
               <CalendarCheck className="w-4 h-4 mr-2" />
-              Ciclo Mensal
+              Finalizar Ciclo Atual
             </Button>
           </>
         )}
@@ -618,10 +627,10 @@ export default function ComportamentoPage() {
                       <SelectValue placeholder="Selecione o Ciclo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={format(new Date(), 'yyyy-MM')}>Ciclo Atual</SelectItem>
-                      {studentHistory.map(h => (
-                        <SelectItem key={h.id} value={h.periodo}>
-                          {h.periodo} (Fechado: {h.pontos_periodo} pts)
+                      <SelectItem value="">Ciclo Atual (Em Andamento)</SelectItem>
+                      {ciclos.map(c => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome} (Fechado em {format(new Date(c.data_fechamento), "dd/MM", { locale: ptBR })})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -640,7 +649,7 @@ export default function ComportamentoPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <Card className="lg:col-span-4 bg-zinc-900/40 border-zinc-800 backdrop-blur-xl overflow-hidden rounded-3xl">
-                <div className={cn("h-2 w-full", (BEHAVIOR_LEVELS[selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).accent)} />
+                <div className={cn("h-2 w-full", (BEHAVIOR_LEVELS[selectedMonth ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).accent)} />
                 <CardContent className="p-8">
                   <div className="relative w-32 h-32 mx-auto mb-6">
                     <div className={cn(
@@ -669,13 +678,13 @@ export default function ComportamentoPage() {
                     <div className="bg-zinc-950/50 border border-zinc-800 p-4 rounded-2xl text-center">
                       <p className="text-[10px] text-zinc-600 font-bold uppercase mb-1">Status Global</p>
                       <p className={cn("text-lg font-black", (BEHAVIOR_LEVELS[selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).textColor)}>
-                        {selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"}
+                        {selectedMonth ? studentHistory.find(h => h.periodo === selectedMonth)?.nivel_novo || "EXCEPCIONAL" : selectedAluno.comportamento_atual || "EXCEPCIONAL"}
                       </p>
                     </div>
                     <div className="bg-zinc-950/50 border border-zinc-800 p-4 rounded-2xl text-center">
                       <p className="text-[10px] text-zinc-600 font-bold uppercase mb-1">Pontuação</p>
                       <p className="text-2xl font-black text-white">
-                        {selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') && studentHistory.find(h => h.periodo === selectedMonth)
+                        {selectedMonth && studentHistory.find(h => h.periodo === selectedMonth)
                           ? studentHistory.find(h => h.periodo === selectedMonth)?.pontos_periodo
                           : calculateMonthlyScore(selectedAluno.id, selectedMonth)}
                       </p>
@@ -771,7 +780,7 @@ export default function ComportamentoPage() {
                 <Card className="bg-zinc-900/40 border-zinc-800 backdrop-blur-xl rounded-3xl">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      {selectedMonth && selectedMonth !== format(new Date(), 'yyyy-MM') ? `Ocorrências do Ciclo (${selectedMonth})` : 'Histórico de Ocorrências'}
+                      {selectedMonth ? `Ocorrências do Ciclo (${selectedMonth})` : 'Ocorrências do Ciclo Atual'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1173,18 +1182,74 @@ export default function ComportamentoPage() {
         <DialogContent className="bg-zinc-950 border-zinc-800 text-white rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
-              <AlertTriangle className="text-amber-500" />
-              Confirmar Ciclo Mensal
+              <AlertTriangle className="text-emerald-500" />
+              Finalizar Novo Ciclo
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Esta ação irá analisar a pontuação de TODOS os alunos neste mês e aplicar as transições automáticas.
+              Isso salvará a lista atual de pontos, criará o dossiê na linha do tempo, e resetará todos os alunos de volta aos 100 pontos para começar o próximo ciclo.
             </DialogDescription>
           </DialogHeader>
+          <div className="py-2">
+            <Label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Nome Oficial do Ciclo</Label>
+            <Input
+              value={newCicloName}
+              onChange={(e) => setNewCicloName(e.target.value)}
+              placeholder="Exemplo: Fevereiro 2026, 1º Trimestre..."
+              className="bg-zinc-900 border-zinc-800 font-bold mt-2 h-12"
+            />
+          </div>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="ghost" onClick={() => setShowConfirmFinalize(false)}>CANCELAR</Button>
             <Button onClick={handleFinalizeMonth} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8">
-              APLICAR
+              APLICAR REINÍCIO
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Cycles Modal */}
+      <Dialog open={showGerenciarCiclos} onOpenChange={setShowGerenciarCiclos}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-white rounded-3xl max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
+              <Settings className="text-amber-500" />
+              Gerenciar Ciclos
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Visualize, recupere ou delete os encerramentos realizados no sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {ciclos.length === 0 && (
+              <p className="text-center text-sm text-zinc-500 py-8">Não há nenhum ciclo salvo.</p>
+            )}
+            {ciclos.map((c, idx) => (
+              <div key={c.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white uppercase text-sm">{c.nome}</h4>
+                  <p className="text-[10px] tracking-wider font-bold text-zinc-500 uppercase mt-1">Registrado em: {format(new Date(c.data_fechamento), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  {idx === 0 ? (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleRevertCiclo(c.id)}
+                      disabled={saving}
+                      className="h-8 shadow-lg shadow-red-900/20"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Reverter
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-[10px]">Trancado</Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="ghost" onClick={() => setShowGerenciarCiclos(false)}>FECHAR CONSOLE</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
