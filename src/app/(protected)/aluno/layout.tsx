@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, memo } from "react";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -98,6 +99,33 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [studentInfo, setStudentInfo] = useState<{ matricula: string, nomeGuerra: string } | null>(null);
+
+  useEffect(() => {
+    const fetchStudentInfo = async () => {
+      let id = profile?.role === "aluno" ? profile.student_id : null;
+      if (!id && typeof window !== "undefined") {
+        id = sessionStorage.getItem("selectedStudentId");
+      }
+      if (id) {
+        const { data } = await supabase
+          .from("students")
+          .select("matricula_pfm, nome_guerra")
+          .eq("id", id)
+          .single();
+        if (data) {
+          setStudentInfo({
+            matricula: data.matricula_pfm,
+            nomeGuerra: data.nome_guerra
+          });
+        }
+      }
+    };
+
+    if (profile) {
+      fetchStudentInfo();
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -191,11 +219,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-white/10">
               <div className="text-right">
-                <p className="text-xs font-black text-white leading-none">{profile?.full_name?.split(" ")[0]}</p>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Aluno Ativo</p>
+                <p className="text-xs font-black text-white leading-none">
+                  {studentInfo ? `${studentInfo.matricula} ${studentInfo.nomeGuerra}` : profile?.full_name?.split(" ")[0]}
+                </p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">{studentInfo ? "ALUNO ATIVO" : "PERFIL ATIVO"}</p>
               </div>
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-xs font-black text-violet-400">
-                {profile?.full_name?.charAt(0) || "A"}
+                {studentInfo?.nomeGuerra ? studentInfo.nomeGuerra.charAt(0) : (profile?.full_name?.charAt(0) || "A")}
               </div>
             </div>
 

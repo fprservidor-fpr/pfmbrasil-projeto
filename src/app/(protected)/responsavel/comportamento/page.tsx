@@ -139,7 +139,7 @@ export default function ResponsavelComportamentoPage() {
 
   const behavior = selectedCycle === "current_cycle"
     ? getBehaviorLabel(score)
-    : getBehaviorLabelMapping(studentHistory.find(h => h.periodo === selectedCycle)?.nivel_novo || getBehaviorLabel(score).label);
+    : getBehaviorLabelMapping(studentHistory.find(h => h.periodo === selectedCycle)?.nivel_anterior || getBehaviorLabel(score).label);
 
   const filteredItems = activeTab === "todos"
     ? cycleRegistros

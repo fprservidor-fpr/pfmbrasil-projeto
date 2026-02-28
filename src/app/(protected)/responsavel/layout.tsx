@@ -103,6 +103,7 @@ const responsibleNavItems = [
 
 type Student = {
   id: string;
+  matricula_pfm: string;
   nome_guerra: string;
   nome_completo: string;
   turma: string;
@@ -135,7 +136,7 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
     const normalizedCpf = cpf.replace(/\D/g, '').padStart(11, '0');
     const { data } = await supabase
       .from("students")
-      .select("id, nome_guerra, nome_completo, turma")
+      .select("id, matricula_pfm, nome_guerra, nome_completo, turma")
       .or(`guardian1_cpf.eq.${normalizedCpf},guardian2_cpf.eq.${normalizedCpf},responsavel_cpf.eq.${normalizedCpf}`)
       .eq("status", "ativo");
 
@@ -219,7 +220,9 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="hidden md:flex gap-2 bg-white/5 border-white/10 hover:bg-white/10 text-white">
                     <Users className="w-4 h-4 text-blue-400" />
-                    <span className="max-w-[120px] truncate">{selectedStudent?.nome_guerra || "Selecionar Aluno"}</span>
+                    <span className="max-w-[120px] truncate">
+                      {selectedStudent?.matricula_pfm ? `${selectedStudent.matricula_pfm} ${selectedStudent.nome_guerra}` : (selectedStudent?.nome_guerra || "Selecionar Aluno")}
+                    </span>
                     <ChevronDown className="w-3 h-3 text-slate-500" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -236,7 +239,7 @@ export default function ResponsibleLayout({ children }: { children: React.ReactN
                       )}
                     >
                       <span className={cn("font-bold", selectedStudent?.id === student.id ? "text-blue-400" : "text-slate-200")}>
-                        {student.nome_guerra}
+                        {student.matricula_pfm ? `${student.matricula_pfm} ${student.nome_guerra}` : student.nome_guerra}
                       </span>
                       <span className="text-[10px] text-slate-500">{student.turma}</span>
                     </DropdownMenuItem>
