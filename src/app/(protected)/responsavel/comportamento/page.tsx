@@ -40,6 +40,7 @@ export default function ResponsavelComportamentoPage() {
   const [ciclos, setCiclos] = useState<any[]>([]);
   const [studentHistory, setStudentHistory] = useState<any[]>([]);
   const [selectedCycle, setSelectedCycle] = useState<string>("current_cycle");
+  const [comportamentoAtual, setComportamentoAtual] = useState<string>("Excepcional");
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -52,10 +53,11 @@ export default function ResponsavelComportamentoPage() {
   async function fetchDadosGerais(id: string) {
     try {
       setLoading(true);
-      const [compRes, ciclosRes, historyRes] = await Promise.all([
+      const [compRes, ciclosRes, historyRes, studentRes] = await Promise.all([
         supabase.from("comportamentos").select("*").eq("aluno_id", id).order("created_at", { ascending: false }),
         supabase.from("comportamento_ciclos").select("*").order("data_fechamento", { ascending: false }),
-        supabase.from("behavior_history").select("*").eq("student_id", id).order("created_at", { ascending: false })
+        supabase.from("behavior_history").select("*").eq("student_id", id).order("created_at", { ascending: false }),
+        supabase.from("students").select("comportamento_atual").eq("id", id).single()
       ]);
 
       if (compRes.error) throw compRes.error;
@@ -63,6 +65,9 @@ export default function ResponsavelComportamentoPage() {
       setComportamentos(compRes.data || []);
       setCiclos(ciclosRes.data || []);
       setStudentHistory(historyRes.data || []);
+      if (studentRes.data?.comportamento_atual) {
+        setComportamentoAtual(studentRes.data.comportamento_atual);
+      }
     } catch (error) {
       console.error("Erro ao buscar dados de comportamento:", error);
     } finally {
@@ -138,7 +143,7 @@ export default function ResponsavelComportamentoPage() {
   };
 
   const behavior = selectedCycle === "current_cycle"
-    ? getBehaviorLabel(score)
+    ? getBehaviorLabelMapping(comportamentoAtual)
     : getBehaviorLabelMapping(studentHistory.find(h => h.periodo === selectedCycle)?.nivel_anterior || getBehaviorLabel(score).label);
 
   const filteredItems = activeTab === "todos"
