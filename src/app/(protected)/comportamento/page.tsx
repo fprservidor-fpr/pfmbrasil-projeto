@@ -626,10 +626,10 @@ export default function ComportamentoPage() {
                     <SelectTrigger className="w-[180px] bg-zinc-900/40 border-zinc-800 text-white rounded-xl">
                       <SelectValue placeholder="Selecione o Ciclo" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="current_cycle">Ciclo Atual (Em Andamento)</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white shadow-xl shadow-black/50">
+                      <SelectItem value="current_cycle" className="focus:bg-zinc-800 focus:text-white cursor-pointer transition-colors">Ciclo Atual (Em Andamento)</SelectItem>
                       {ciclos.map(c => (
-                        <SelectItem key={c.id} value={c.nome}>
+                        <SelectItem key={c.id} value={c.nome} className="focus:bg-zinc-800 focus:text-white cursor-pointer transition-colors">
                           {c.nome} (Fechado em {format(new Date(c.data_fechamento), "dd/MM", { locale: ptBR })})
                         </SelectItem>
                       ))}
@@ -767,7 +767,7 @@ export default function ComportamentoPage() {
                               <h4 className="text-white font-black text-sm uppercase">{h.periodo}</h4>
                               <div className="flex items-center gap-4 mt-1">
                                 <p className="text-zinc-500 text-xs font-medium">Nível: <span className={cn("font-bold uppercase", (BEHAVIOR_LEVELS[h.nivel_novo || "EXCEPCIONAL"] || BEHAVIOR_LEVELS["EXCEPCIONAL"]).textColor)}>{h.nivel_novo}</span></p>
-                                <p className="text-zinc-500 text-xs font-medium">Pontuação: <span className="text-white font-bold">{h.pontos_periodo} pts</span></p>
+                                <p className="text-zinc-500 text-xs font-medium">Pontuação: <span className="text-white font-bold">{h.pontos_periodo ?? '---'} pts</span></p>
                               </div>
                             </div>
                           </div>
