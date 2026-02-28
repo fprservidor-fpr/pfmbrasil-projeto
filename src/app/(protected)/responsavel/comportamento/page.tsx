@@ -32,16 +32,39 @@ export default function ResponsavelComportamentoPage() {
   const [comportamentos, setComportamentos] = useState<Comportamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"todos" | "meritos" | "demeritos">("todos");
+  const [lastFinalizedDate, setLastFinalizedDate] = useState<Date | null>(null);
 
   const selectedStudentId = typeof window !== "undefined" ? sessionStorage.getItem("selectedStudentId") : null;
 
   useEffect(() => {
     if (selectedStudentId) {
       fetchComportamentos(selectedStudentId);
+      fetchLastFinalized();
     } else {
       setLoading(false);
     }
   }, [selectedStudentId]);
+
+  async function fetchLastFinalized() {
+    try {
+      const currentPeriod = format(new Date(), 'yyyy-MM');
+      const { data, error } = await supabase
+        .from("behavior_history")
+        .select("created_at")
+        .eq("periodo", currentPeriod)
+        .eq("tipo_mudanca", "AUTO")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setLastFinalizedDate(new Date(data[0].created_at));
+      } else {
+        setLastFinalizedDate(null);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar ultimo ciclo fechado:", error);
+    }
+  }
 
   async function fetchComportamentos(id: string) {
     try {
@@ -66,10 +89,16 @@ export default function ResponsavelComportamentoPage() {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    const registros = comportamentos.filter(c =>
+    let registros = comportamentos.filter(c =>
       new Date(c.created_at) >= start &&
       new Date(c.created_at) <= end
-    ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    );
+
+    if (lastFinalizedDate) {
+      registros = registros.filter(r => new Date(r.created_at) > lastFinalizedDate);
+    }
+
+    registros = registros.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
     let score = 100;
     registros.forEach(r => {
