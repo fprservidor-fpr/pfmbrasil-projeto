@@ -35,13 +35,34 @@ export default function AlunoComportamentoPage() {
 
   const studentId = profile?.role === "aluno" ? profile.student_id : (typeof window !== "undefined" ? sessionStorage.getItem("selectedStudentId") : null);
 
+  const [lastFinalizedDate, setLastFinalizedDate] = useState<Date | null>(null);
+
   useEffect(() => {
     if (studentId) {
       fetchComportamentos(studentId);
+      fetchLastFinalized();
     } else {
       setLoading(false);
     }
   }, [studentId]);
+
+  async function fetchLastFinalized() {
+    try {
+      const { data, error } = await supabase
+        .from("comportamento_ciclos")
+        .select("data_fechamento")
+        .order("data_fechamento", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setLastFinalizedDate(new Date(data[0].data_fechamento));
+      } else {
+        setLastFinalizedDate(null);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar ultimo ciclo fechado:", error);
+    }
+  }
 
   async function fetchComportamentos(id: string) {
     try {
@@ -62,14 +83,13 @@ export default function AlunoComportamentoPage() {
   }
 
   const calculateScore = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    let registros = [...comportamentos];
 
-    const registros = comportamentos.filter(c =>
-      new Date(c.created_at) >= start &&
-      new Date(c.created_at) <= end
-    ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    if (lastFinalizedDate) {
+      registros = registros.filter(r => new Date(r.created_at) > lastFinalizedDate);
+    }
+
+    registros = registros.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
     let score = 100;
     registros.forEach(r => {
