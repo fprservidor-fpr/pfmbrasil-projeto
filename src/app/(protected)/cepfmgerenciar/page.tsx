@@ -594,7 +594,7 @@ export default function CEPFMAdminPage() {
                                             <TableRow className="border-white/5 hover:bg-transparent">
                                                 <TableHead className="w-[220px] min-w-[220px] p-6 text-zinc-500 font-black uppercase text-[10px] tracking-[0.3em] sticky left-0 z-40 bg-zinc-950">Patrulha</TableHead>
                                                 {modalidades.map(m => (
-                                                    <TableHead key={m.id} className="text-zinc-500 font-black uppercase text-[9px] tracking-[0.2em] text-center min-w-[110px] px-2">{m.nome}</TableHead>
+                                                    <TableHead key={m.id} className="text-zinc-500 font-black uppercase text-[9px] tracking-[0.2em] text-center min-w-[140px] whitespace-nowrap px-4">{m.nome}</TableHead>
                                                 ))}
                                                 <TableHead className="text-yellow-500 font-black uppercase text-[10px] tracking-[0.3em] text-center min-w-[110px] bg-yellow-500/5 sticky right-0 z-40 bg-zinc-950">Total</TableHead>
                                             </TableRow>
@@ -613,7 +613,7 @@ export default function CEPFMAdminPage() {
                                                             </div>
                                                         </TableCell>
                                                         {modalidades.map(m => (
-                                                            <TableCell key={m.id} className="px-2 py-6">
+                                                            <TableCell key={m.id} className="px-4 py-6">
                                                                 <div className="relative group/input flex justify-center">
                                                                     <Input
                                                                         type="number"
